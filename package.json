@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server/index-dev.ts",
-    "build": "vite build && esbuild server/index-prod.ts --bundle --platform=node --outdir=dist --format=esm --packages=external",
+    "build": "vite build && esbuild server/index-prod.ts --bundle --platform=node --outdir=dist --format=esm --packages=external && esbuild server/vercel-handler.ts --bundle --platform=node --outdir=api --format=esm --packages=external --out-extension:.js=.mjs",
     "start": "NODE_ENV=production node dist/index-prod.js",
     "db:init": "tsx server/init-db.ts",
     "db:push": "drizzle-kit push:sqlite",
