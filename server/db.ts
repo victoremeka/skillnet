@@ -5,6 +5,11 @@ import * as schema from "@shared/schema";
 import path from "path";
 import fs from "fs";
 
+// Debug: Log environment variable presence (not values for security)
+console.log("[DB] DATABASE_URL present:", !!process.env.DATABASE_URL);
+console.log("[DB] DATABASE_URL starts with libsql://:", process.env.DATABASE_URL?.startsWith("libsql://"));
+console.log("[DB] TURSO_AUTH_TOKEN present:", !!process.env.TURSO_AUTH_TOKEN);
+
 // Determine if we're using Turso (remote) or local SQLite
 const hasTursoUrl = process.env.DATABASE_URL?.startsWith("libsql://");
 
