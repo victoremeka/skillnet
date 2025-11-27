@@ -304,6 +304,66 @@ export const disputesRelations = relations(disputes, ({ one }) => ({
 }));
 
 // ============================================================================
+// SERVICE REQUESTS TABLE
+// ============================================================================
+
+export const serviceRequests = sqliteTable("service_requests", {
+  id: text("id").primaryKey(),
+  serviceId: text("service_id").notNull().references(() => services.id, { onDelete: "cascade" }),
+  clientId: text("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  providerId: text("provider_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tier: text("tier"),
+  requirements: text("requirements").notNull(),
+  price: real("price"),
+  deliveryDays: integer("delivery_days"),
+  status: text("status", { enum: ["pending", "accepted", "declined", "expired", "countered"] })
+    .notNull()
+    .default("pending"),
+  counterPrice: real("counter_price"),
+  counterDeliveryDays: integer("counter_delivery_days"),
+  counterMessage: text("counter_message"),
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
+export const serviceRequestsRelations = relations(serviceRequests, ({ one }) => ({
+  service: one(services, {
+    fields: [serviceRequests.serviceId],
+    references: [services.id],
+  }),
+  client: one(users, {
+    fields: [serviceRequests.clientId],
+    references: [users.id],
+  }),
+  provider: one(users, {
+    fields: [serviceRequests.providerId],
+    references: [users.id],
+  }),
+}));
+
+// ============================================================================
+// NOTIFICATIONS TABLE
+// ============================================================================
+
+export const notifications = sqliteTable("notifications", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type"),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  linkUrl: text("link_url"),
+  read: integer("read", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+}));
+
+// ============================================================================
 // ZOD SCHEMAS FOR VALIDATION
 // ============================================================================
 
@@ -481,3 +541,6 @@ export type MessageWithSender = Message & {
 export type ReviewWithAuthor = Review & {
   author: SafeUser;
 };
+
+export type ServiceRequest = typeof serviceRequests.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Briefcase,
   Plus,
@@ -23,6 +34,9 @@ import {
   MessageSquare,
   ArrowRight,
   Package,
+  Inbox,
+  X,
+  Send,
 } from "lucide-react";
 import {
   formatCurrency,
@@ -30,8 +44,10 @@ import {
   getStatusColor,
   getStatusLabel,
   getInitials,
+  formatRelativeTime,
 } from "@/lib/utils";
-import type { SafeUser, ServiceWithProvider, ProjectWithDetails, Profile } from "@shared/schema";
+import type { SafeUser, ServiceWithProvider, ProjectWithDetails, Profile, ServiceRequest } from "@shared/schema";
+import { useState } from "react";
 
 interface DashboardProps {
   user: SafeUser | null;
@@ -109,6 +125,7 @@ export default function Dashboard({ user }: DashboardProps) {
 }
 
 function StudentDashboard({ user }: { user: SafeUser }) {
+  const queryClient = useQueryClient();
   const { data: profileData } = useQuery<{ profile: Profile | null }>({
     queryKey: ["/api/profile"],
   });
@@ -125,6 +142,19 @@ function StudentDashboard({ user }: { user: SafeUser }) {
   const { data: projects, isLoading: projectsLoading } = useQuery<ProjectWithDetails[]>({
     queryKey: ["/api/projects"],
   });
+
+  const { data: serviceRequests = [], isLoading: requestsLoading } = useQuery<ServiceRequest[]>({
+    queryKey: ["/api/service-requests"],
+    queryFn: async () => {
+      const res = await fetch("/api/service-requests", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const pendingRequests = serviceRequests.filter((r) => r.status === "pending" || r.status === "countered");
 
   const profile = profileData?.profile;
 
@@ -191,11 +221,45 @@ function StudentDashboard({ user }: { user: SafeUser }) {
       </div>
 
       {/* Tabs for Services and Projects */}
-      <Tabs defaultValue="projects" className="space-y-4">
+      <Tabs defaultValue="requests" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="requests" className="relative">
+            Service Requests
+            {pendingRequests.length > 0 && (
+              <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+                {pendingRequests.length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="projects">My Projects</TabsTrigger>
           <TabsTrigger value="services">My Services</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="requests" className="space-y-4">
+          {requestsLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-32 w-full" />
+              ))}
+            </div>
+          ) : pendingRequests.length > 0 ? (
+            <div className="space-y-4">
+              {pendingRequests.map((request) => (
+                <ServiceRequestCard key={request.id} request={request} role="provider" />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Inbox className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No pending requests</h3>
+                <p className="text-muted-foreground text-center mb-4">
+                  When clients request your services, they'll appear here
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
 
         <TabsContent value="projects" className="space-y-4">
           {projectsLoading ? (
@@ -267,6 +331,19 @@ function ClientDashboard({ user }: { user: SafeUser }) {
     queryKey: ["/api/projects"],
   });
 
+  const { data: serviceRequests = [], isLoading: requestsLoading } = useQuery<ServiceRequest[]>({
+    queryKey: ["/api/service-requests"],
+    queryFn: async () => {
+      const res = await fetch("/api/service-requests", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const pendingRequests = serviceRequests.filter((r) => r.status === "pending" || r.status === "countered");
+
   // Calculate stats
   const openProjects = projects?.filter((p) => p.status === "open").length || 0;
   const activeProjects = projects?.filter(
@@ -330,6 +407,21 @@ function ClientDashboard({ user }: { user: SafeUser }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Pending Service Requests */}
+      {pendingRequests.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Pending Service Requests</h2>
+            <Badge variant="secondary">{pendingRequests.length} pending</Badge>
+          </div>
+          <div className="space-y-4">
+            {pendingRequests.map((request) => (
+              <ServiceRequestCard key={request.id} request={request} role="client" />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Projects List */}
       <div>
@@ -477,6 +569,199 @@ function ServiceCard({ service }: { service: ServiceWithProvider }) {
               View Details
             </Link>
           </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Service Request Card with accept/decline/counter actions
+function ServiceRequestCard({ request, role }: { request: ServiceRequest; role: "provider" | "client" }) {
+  const queryClient = useQueryClient();
+  const [counterOpen, setCounterOpen] = useState(false);
+  const [counterPrice, setCounterPrice] = useState(request.price?.toString() || "");
+  const [counterDays, setCounterDays] = useState(request.deliveryDays?.toString() || "");
+  const [counterMsg, setCounterMsg] = useState("");
+
+  const acceptMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/service-requests/${request.id}/accept`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (!res.ok) throw new Error("Failed to accept");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] }),
+  });
+
+  const declineMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/service-requests/${request.id}/decline`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (!res.ok) throw new Error("Failed to decline");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] }),
+  });
+
+  const counterMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/service-requests/${request.id}/counter`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          counterPrice: parseFloat(counterPrice) || null,
+          counterDeliveryDays: parseInt(counterDays) || null,
+          counterMessage: counterMsg || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to counter");
+      return res.json();
+    },
+    onSuccess: () => {
+      setCounterOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
+    },
+  });
+
+  const statusBadge = {
+    pending: "bg-blue-100 text-blue-800",
+    countered: "bg-yellow-100 text-yellow-800",
+    accepted: "bg-green-100 text-green-800",
+    declined: "bg-red-100 text-red-800",
+    expired: "bg-gray-100 text-gray-800",
+  }[request.status] || "bg-gray-100 text-gray-800";
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-6">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-start gap-3 mb-2">
+              <h3 className="text-lg font-semibold">Service Request</h3>
+              <Badge className={statusBadge}>
+                {request.status === "countered" ? "Counter-offer" : request.status}
+              </Badge>
+              {request.tier && <Badge variant="outline">{request.tier}</Badge>}
+            </div>
+            <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
+              {request.requirements}
+            </p>
+            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+              {request.price && (
+                <span className="flex items-center gap-1">
+                  <DollarSign className="h-4 w-4" />
+                  {formatCurrency(request.price)}
+                </span>
+              )}
+              {request.deliveryDays && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  {request.deliveryDays} days
+                </span>
+              )}
+              {request.expiresAt && (
+                <span className="flex items-center gap-1 text-orange-600">
+                  <AlertCircle className="h-4 w-4" />
+                  Expires {formatRelativeTime(request.expiresAt)}
+                </span>
+              )}
+            </div>
+            {request.status === "countered" && request.counterPrice && (
+              <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-950 rounded-md">
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Counter-offer:</p>
+                <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                  {formatCurrency(request.counterPrice)} • {request.counterDeliveryDays} days
+                </p>
+                {request.counterMessage && (
+                  <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">{request.counterMessage}</p>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {role === "provider" && request.status === "pending" && (
+              <>
+                <Button size="sm" onClick={() => acceptMutation.mutate()} disabled={acceptMutation.isPending}>
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Accept
+                </Button>
+                <Dialog open={counterOpen} onOpenChange={setCounterOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <Send className="h-4 w-4 mr-1" />
+                      Counter
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Send Counter-Offer</DialogTitle>
+                      <DialogDescription>Propose different terms to the client.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div>
+                        <label className="text-sm font-medium">Price (₦)</label>
+                        <Input
+                          type="number"
+                          value={counterPrice}
+                          onChange={(e) => setCounterPrice(e.target.value)}
+                          placeholder="Enter price"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Delivery Days</label>
+                        <Input
+                          type="number"
+                          value={counterDays}
+                          onChange={(e) => setCounterDays(e.target.value)}
+                          placeholder="Enter days"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Message (optional)</label>
+                        <Textarea
+                          value={counterMsg}
+                          onChange={(e) => setCounterMsg(e.target.value)}
+                          placeholder="Explain your counter-offer..."
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setCounterOpen(false)}>Cancel</Button>
+                      <Button onClick={() => counterMutation.mutate()} disabled={counterMutation.isPending}>
+                        Send Counter-Offer
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                <Button size="sm" variant="destructive" onClick={() => declineMutation.mutate()} disabled={declineMutation.isPending}>
+                  <X className="h-4 w-4 mr-1" />
+                  Decline
+                </Button>
+              </>
+            )}
+            {role === "client" && request.status === "countered" && (
+              <>
+                <Button size="sm" onClick={() => acceptMutation.mutate()} disabled={acceptMutation.isPending}>
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Accept Counter
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => declineMutation.mutate()} disabled={declineMutation.isPending}>
+                  <X className="h-4 w-4 mr-1" />
+                  Decline
+                </Button>
+              </>
+            )}
+            {role === "client" && request.status === "pending" && (
+              <Badge variant="outline">Waiting for response</Badge>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

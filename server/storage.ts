@@ -1,4 +1,4 @@
-import { eq, and, or, desc, sql, like } from "drizzle-orm";
+import { eq, and, or, desc, sql, like, lt } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -10,6 +10,8 @@ import {
   transactions,
   reviews,
   disputes,
+  serviceRequests,
+  notifications,
   type User,
   type SafeUser,
   type Profile,
@@ -616,6 +618,95 @@ export async function createTransaction(data: {
   return transaction;
 }
 
+// ============================================================================
+// SERVICE REQUESTS & NOTIFICATIONS
+// ============================================================================
+
+export async function createServiceRequest(
+  clientId: string,
+  data: {
+    serviceId: string;
+    providerId: string;
+    tier?: string | null;
+    requirements: string;
+    price?: number | null;
+    deliveryDays?: number | null;
+    expiresAt?: Date | null;
+  }
+): Promise<any> {
+  const id = uuidv4();
+  const expires = data.expiresAt ? Math.floor(data.expiresAt.getTime() / 1000) : Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+
+  const [req] = await db
+    .insert(serviceRequests)
+    .values({
+      id,
+      serviceId: data.serviceId,
+      clientId,
+      providerId: data.providerId,
+      tier: data.tier || null,
+      requirements: data.requirements,
+      price: data.price ?? null,
+      deliveryDays: data.deliveryDays ?? null,
+      expiresAt: new Date(expires * 1000),
+    })
+    .returning();
+
+  return req;
+}
+
+export async function getServiceRequests(filters?: {
+  userId?: string; // either provider or client
+  role?: "provider" | "client";
+  status?: string;
+}): Promise<any[]> {
+  // Expire old requests on read
+  const now = new Date();
+  await db
+    .update(serviceRequests)
+    .set({ status: "expired" })
+    .where(
+      and(
+        lt(serviceRequests.expiresAt, now),
+        eq(serviceRequests.status, "pending")
+      )
+    );
+
+  const conditions: any[] = [];
+  if (filters?.userId && filters?.role === "provider") {
+    conditions.push(eq(serviceRequests.providerId, filters.userId));
+  }
+  if (filters?.userId && filters?.role === "client") {
+    conditions.push(eq(serviceRequests.clientId, filters.userId));
+  }
+  if (filters?.status) {
+    conditions.push(eq(serviceRequests.status, filters.status as any));
+  }
+
+  const list = await db.select().from(serviceRequests).where(conditions.length > 0 ? and(...conditions) : undefined).orderBy(desc(serviceRequests.createdAt));
+  return list;
+}
+
+export async function updateServiceRequest(id: string, data: Partial<any>): Promise<any | null> {
+  const [updated] = await db.update(serviceRequests).set(data as any).where(eq(serviceRequests.id, id)).returning();
+  return updated || null;
+}
+
+export async function createNotification(userId: string, data: { type?: string; title: string; message: string; linkUrl?: string | null; }): Promise<any> {
+  const id = uuidv4();
+  const [n] = await db.insert(notifications).values({ id, userId, type: data.type || null, title: data.title, message: data.message, linkUrl: data.linkUrl || null }).returning();
+  return n;
+}
+
+export async function getNotifications(userId: string): Promise<any[]> {
+  return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
+}
+
+export async function markNotificationRead(id: string): Promise<boolean> {
+  await db.update(notifications).set({ read: true }).where(eq(notifications.id, id));
+  return true;
+}
+
 export async function getTransactions(filters?: {
   projectId?: string;
   userId?: string;
@@ -863,6 +954,16 @@ export const storage = {
   // Messages
   createMessage,
   getMessages,
+
+  // Service Requests
+  createServiceRequest,
+  getServiceRequests,
+  updateServiceRequest,
+
+  // Notifications
+  createNotification,
+  getNotifications,
+  markNotificationRead,
 
   // Transactions
   createTransaction,

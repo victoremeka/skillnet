@@ -181,6 +181,42 @@ const createTables = async () => {
   `);
   console.log("  ✓ disputes");
 
+  // Service requests table
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS service_requests (
+      id TEXT PRIMARY KEY,
+      service_id TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+      client_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      tier TEXT,
+      requirements TEXT NOT NULL,
+      price REAL,
+      delivery_days INTEGER,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'declined', 'expired', 'countered')),
+      counter_price REAL,
+      counter_delivery_days INTEGER,
+      counter_message TEXT,
+      expires_at INTEGER,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )
+  `);
+  console.log("  ✓ service_requests");
+
+  // Notifications table
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      link_url TEXT,
+      read INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )
+  `);
+  console.log("  ✓ notifications");
+
   // Create indexes for better query performance
   console.log("\n📇 Creating indexes...");
   
@@ -197,6 +233,12 @@ const createTables = async () => {
   await client.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_project_id ON transactions(project_id)`);
   await client.execute(`CREATE INDEX IF NOT EXISTS idx_reviews_target_user_id ON reviews(target_user_id)`);
   await client.execute(`CREATE INDEX IF NOT EXISTS idx_disputes_project_id ON disputes(project_id)`);
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_service_requests_provider_id ON service_requests(provider_id)`);
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_service_requests_client_id ON service_requests(client_id)`);
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_service_requests_status ON service_requests(status)`);
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_service_requests_expires_at ON service_requests(expires_at)`);
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)`);
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read)`);
   
   console.log("  ✓ All indexes created");
 };
