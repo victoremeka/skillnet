@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "@shared/schema";
@@ -5,7 +6,6 @@ import path from "path";
 import fs from "fs";
 
 // Determine if we're using Turso (remote) or local SQLite
-const isProduction = process.env.NODE_ENV === "production";
 const hasTursoUrl = process.env.DATABASE_URL?.startsWith("libsql://");
 
 let client;
