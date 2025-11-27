@@ -2,9 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist/public",
   "functions": {
-    "api/vercel-handler.mjs": {
-      "runtime": "@vercel/node@3"
-    }
+    "api/vercel-handler.mjs": {}
   },
   "rewrites": [
     {

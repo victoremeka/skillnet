@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "@shared/schema";
@@ -38,5 +37,8 @@ if (hasTursoUrl) {
 
 // Create drizzle instance
 export const db = drizzle(client, { schema });
+
+// Export client for health checks
+export { client as dbClient };
 
 export type Database = typeof db;

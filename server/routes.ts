@@ -1281,4 +1281,36 @@ export function registerRoutes(app: Express): void {
   app.get("/api/health", (_req: Request, res: Response) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
+
+  // Database health check
+  app.get("/api/health/db", async (_req: Request, res: Response) => {
+    try {
+      const isTurso = process.env.DATABASE_URL?.startsWith("libsql://");
+      
+      // Run a simple query to verify connection
+      const result = await storage.getUser("health-check-test");
+      
+      res.json({
+        status: "ok",
+        database: isTurso ? "turso" : "local-sqlite",
+        timestamp: new Date().toISOString(),
+        env: {
+          DATABASE_URL_SET: !!process.env.DATABASE_URL,
+          TURSO_AUTH_TOKEN_SET: !!process.env.TURSO_AUTH_TOKEN,
+        },
+      });
+    } catch (error) {
+      console.error("Database health check failed:", error);
+      res.status(503).json({
+        status: "error",
+        database: process.env.DATABASE_URL?.startsWith("libsql://") ? "turso" : "local-sqlite",
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
+        env: {
+          DATABASE_URL_SET: !!process.env.DATABASE_URL,
+          TURSO_AUTH_TOKEN_SET: !!process.env.TURSO_AUTH_TOKEN,
+        },
+      });
+    }
+  });
 }
