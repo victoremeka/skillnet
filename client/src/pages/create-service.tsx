@@ -43,6 +43,9 @@ const createServiceSchema = z.object({
   priceBasic: z.string().optional(),
   priceStandard: z.string().optional(),
   pricePremium: z.string().optional(),
+  descriptionBasic: z.string().optional(),
+  descriptionStandard: z.string().optional(),
+  descriptionPremium: z.string().optional(),
   deliveryDays: z.string().optional(),
   sampleUrls: z.array(z.object({
     url: z.string().url("Please enter a valid URL").or(z.literal("")),
@@ -87,6 +90,9 @@ export default function CreateService({ user }: CreateServiceProps) {
       priceBasic: "",
       priceStandard: "",
       pricePremium: "",
+      descriptionBasic: "",
+      descriptionStandard: "",
+      descriptionPremium: "",
       deliveryDays: "",
       sampleUrls: [{ url: "" }],
     },
@@ -106,6 +112,9 @@ export default function CreateService({ user }: CreateServiceProps) {
         priceBasic: data.priceBasic ? parseFloat(data.priceBasic) : null,
         priceStandard: data.priceStandard ? parseFloat(data.priceStandard) : null,
         pricePremium: data.pricePremium ? parseFloat(data.pricePremium) : null,
+        descriptionBasic: data.descriptionBasic || null,
+        descriptionStandard: data.descriptionStandard || null,
+        descriptionPremium: data.descriptionPremium || null,
         deliveryDays: data.deliveryDays ? parseInt(data.deliveryDays) : null,
         sampleUrls: data.sampleUrls?.filter((s) => s.url).map((s) => s.url) || [],
       };
@@ -283,68 +292,125 @@ export default function CreateService({ user }: CreateServiceProps) {
                 </p>
 
                 <div className="grid gap-4 md:grid-cols-3">
-                  <FormField
-                    control={form.control}
-                    name="priceBasic"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Basic ($)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min="1"
-                            step="0.01"
-                            placeholder="25"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>Entry level</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="priceBasic"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Basic ($)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="1"
+                              step="0.01"
+                              placeholder="25"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>Entry level</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="descriptionBasic"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Basic Description</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="What's included in the basic tier?"
+                              className="min-h-[80px]"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                  <FormField
-                    control={form.control}
-                    name="priceStandard"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Standard ($)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min="1"
-                            step="0.01"
-                            placeholder="50"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>Most popular</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="priceStandard"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Standard ($)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="1"
+                              step="0.01"
+                              placeholder="50"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>Most popular</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="descriptionStandard"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Standard Description</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="What's included in the standard tier?"
+                              className="min-h-[80px]"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                  <FormField
-                    control={form.control}
-                    name="pricePremium"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Premium ($)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min="1"
-                            step="0.01"
-                            placeholder="100"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>Full package</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="pricePremium"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Premium ($)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="1"
+                              step="0.01"
+                              placeholder="100"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>Full package</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="descriptionPremium"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Premium Description</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="What's included in the premium tier?"
+                              className="min-h-[80px]"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
               </div>
 

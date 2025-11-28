@@ -532,7 +532,7 @@ export function registerRoutes(app: Express): void {
           type: "service_request",
           title: `New service request: ${service.title}`,
           message: `${req.user!.name} requested your service (${tier}) — review and respond.`,
-          linkUrl: `/dashboard/requests`,
+          linkUrl: `/dashboard`,
         });
       } catch (notifyError) {
         console.warn("[Service Request] Failed to create notification:", notifyError);

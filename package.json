@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx server/index-dev.ts",
     "build": "vite build && esbuild server/index-prod.ts --bundle --platform=node --outdir=dist --format=esm --packages=external && esbuild server/vercel-handler.ts --bundle --platform=node --outdir=api --format=esm --packages=external --out-extension:.js=.mjs",
-    "start": "NODE_ENV=production node dist/index-prod.js",
+    "start": "cross-env NODE_ENV=production node dist/index-prod.js",
     "db:init": "tsx server/init-db.ts",
     "db:push": "drizzle-kit push:sqlite",
     "db:generate": "drizzle-kit generate:sqlite",
@@ -56,6 +56,7 @@
     "@vercel/node": "^5.5.12",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.18",
+    "cross-env": "^7.0.3",
     "drizzle-kit": "^0.20.18",
     "esbuild": "^0.20.1",
     "postcss": "^8.4.35",

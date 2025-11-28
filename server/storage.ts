@@ -187,6 +187,9 @@ export async function createService(
       priceBasic: data.priceBasic ? Number(data.priceBasic) : null,
       priceStandard: data.priceStandard ? Number(data.priceStandard) : null,
       pricePremium: data.pricePremium ? Number(data.pricePremium) : null,
+      descriptionBasic: data.descriptionBasic || null,
+      descriptionStandard: data.descriptionStandard || null,
+      descriptionPremium: data.descriptionPremium || null,
       deliveryDays: data.deliveryDays || null,
       sampleUrls: (data.sampleUrls || []) as string[],
     })
@@ -276,6 +279,9 @@ export async function updateService(
   if (data.priceBasic !== undefined) updateData.priceBasic = data.priceBasic ? Number(data.priceBasic) : null;
   if (data.priceStandard !== undefined) updateData.priceStandard = data.priceStandard ? Number(data.priceStandard) : null;
   if (data.pricePremium !== undefined) updateData.pricePremium = data.pricePremium ? Number(data.pricePremium) : null;
+  if (data.descriptionBasic !== undefined) updateData.descriptionBasic = data.descriptionBasic || null;
+  if (data.descriptionStandard !== undefined) updateData.descriptionStandard = data.descriptionStandard || null;
+  if (data.descriptionPremium !== undefined) updateData.descriptionPremium = data.descriptionPremium || null;
   if (data.deliveryDays !== undefined) updateData.deliveryDays = data.deliveryDays;
   if (data.sampleUrls !== undefined) updateData.sampleUrls = data.sampleUrls;
 

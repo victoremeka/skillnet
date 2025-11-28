@@ -12,10 +12,9 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 // server/storage.ts
-import { eq, and, or, desc, like } from "drizzle-orm";
+import { eq, and, or, desc, like, lt } from "drizzle-orm";
 
 // server/db.ts
-import "dotenv/config";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 
@@ -36,6 +35,8 @@ __export(schema_exports, {
   loginSchema: () => loginSchema,
   messages: () => messages,
   messagesRelations: () => messagesRelations,
+  notifications: () => notifications,
+  notificationsRelations: () => notificationsRelations,
   profiles: () => profiles,
   profilesRelations: () => profilesRelations,
   projects: () => projects,
@@ -45,6 +46,8 @@ __export(schema_exports, {
   reviews: () => reviews,
   reviewsRelations: () => reviewsRelations,
   selectUserSchema: () => selectUserSchema,
+  serviceRequests: () => serviceRequests,
+  serviceRequestsRelations: () => serviceRequestsRelations,
   services: () => services,
   servicesRelations: () => servicesRelations,
   transactions: () => transactions,
@@ -271,6 +274,52 @@ var disputesRelations = relations(disputes, ({ one }) => ({
     references: [users.id]
   })
 }));
+var serviceRequests = sqliteTable("service_requests", {
+  id: text("id").primaryKey(),
+  serviceId: text("service_id").notNull().references(() => services.id, { onDelete: "cascade" }),
+  clientId: text("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  providerId: text("provider_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tier: text("tier"),
+  requirements: text("requirements").notNull(),
+  price: real("price"),
+  deliveryDays: integer("delivery_days"),
+  status: text("status", { enum: ["pending", "accepted", "declined", "expired", "countered"] }).notNull().default("pending"),
+  counterPrice: real("counter_price"),
+  counterDeliveryDays: integer("counter_delivery_days"),
+  counterMessage: text("counter_message"),
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => /* @__PURE__ */ new Date())
+});
+var serviceRequestsRelations = relations(serviceRequests, ({ one }) => ({
+  service: one(services, {
+    fields: [serviceRequests.serviceId],
+    references: [services.id]
+  }),
+  client: one(users, {
+    fields: [serviceRequests.clientId],
+    references: [users.id]
+  }),
+  provider: one(users, {
+    fields: [serviceRequests.providerId],
+    references: [users.id]
+  })
+}));
+var notifications = sqliteTable("notifications", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type"),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  linkUrl: text("link_url"),
+  read: integer("read", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => /* @__PURE__ */ new Date())
+});
+var notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id]
+  })
+}));
 var insertUserSchema = createInsertSchema(users).omit({
   id: true,
   passwordHash: true,
@@ -465,6 +514,9 @@ async function createService(providerId, data) {
     priceBasic: data.priceBasic ? Number(data.priceBasic) : null,
     priceStandard: data.priceStandard ? Number(data.priceStandard) : null,
     pricePremium: data.pricePremium ? Number(data.pricePremium) : null,
+    descriptionBasic: data.descriptionBasic || null,
+    descriptionStandard: data.descriptionStandard || null,
+    descriptionPremium: data.descriptionPremium || null,
     deliveryDays: data.deliveryDays || null,
     sampleUrls: data.sampleUrls || []
   }).returning();
@@ -532,6 +584,12 @@ async function updateService(id, data) {
     updateData.priceStandard = data.priceStandard ? Number(data.priceStandard) : null;
   if (data.pricePremium !== void 0)
     updateData.pricePremium = data.pricePremium ? Number(data.pricePremium) : null;
+  if (data.descriptionBasic !== void 0)
+    updateData.descriptionBasic = data.descriptionBasic || null;
+  if (data.descriptionStandard !== void 0)
+    updateData.descriptionStandard = data.descriptionStandard || null;
+  if (data.descriptionPremium !== void 0)
+    updateData.descriptionPremium = data.descriptionPremium || null;
   if (data.deliveryDays !== void 0)
     updateData.deliveryDays = data.deliveryDays;
   if (data.sampleUrls !== void 0)
@@ -721,6 +779,59 @@ async function createTransaction(data) {
   }).returning();
   return transaction;
 }
+async function createServiceRequest(clientId, data) {
+  const id = uuidv4();
+  const expires = data.expiresAt ? Math.floor(data.expiresAt.getTime() / 1e3) : Math.floor(Date.now() / 1e3) + 7 * 24 * 60 * 60;
+  const [req] = await db.insert(serviceRequests).values({
+    id,
+    serviceId: data.serviceId,
+    clientId,
+    providerId: data.providerId,
+    tier: data.tier || null,
+    requirements: data.requirements,
+    price: data.price ?? null,
+    deliveryDays: data.deliveryDays ?? null,
+    expiresAt: new Date(expires * 1e3)
+  }).returning();
+  return req;
+}
+async function getServiceRequests(filters) {
+  const now = /* @__PURE__ */ new Date();
+  await db.update(serviceRequests).set({ status: "expired" }).where(
+    and(
+      lt(serviceRequests.expiresAt, now),
+      eq(serviceRequests.status, "pending")
+    )
+  );
+  const conditions = [];
+  if (filters?.userId && filters?.role === "provider") {
+    conditions.push(eq(serviceRequests.providerId, filters.userId));
+  }
+  if (filters?.userId && filters?.role === "client") {
+    conditions.push(eq(serviceRequests.clientId, filters.userId));
+  }
+  if (filters?.status) {
+    conditions.push(eq(serviceRequests.status, filters.status));
+  }
+  const list = await db.select().from(serviceRequests).where(conditions.length > 0 ? and(...conditions) : void 0).orderBy(desc(serviceRequests.createdAt));
+  return list;
+}
+async function updateServiceRequest(id, data) {
+  const [updated] = await db.update(serviceRequests).set(data).where(eq(serviceRequests.id, id)).returning();
+  return updated || null;
+}
+async function createNotification(userId, data) {
+  const id = uuidv4();
+  const [n] = await db.insert(notifications).values({ id, userId, type: data.type || null, title: data.title, message: data.message, linkUrl: data.linkUrl || null }).returning();
+  return n;
+}
+async function getNotifications(userId) {
+  return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
+}
+async function markNotificationRead(id) {
+  await db.update(notifications).set({ read: true }).where(eq(notifications.id, id));
+  return true;
+}
 async function getTransactions(filters) {
   const conditions = [];
   if (filters?.projectId) {
@@ -860,6 +971,14 @@ var storage = {
   // Messages
   createMessage,
   getMessages,
+  // Service Requests
+  createServiceRequest,
+  getServiceRequests,
+  updateServiceRequest,
+  // Notifications
+  createNotification,
+  getNotifications,
+  markNotificationRead,
   // Transactions
   createTransaction,
   getTransactions,
@@ -1218,74 +1337,195 @@ function registerRoutes(app2) {
       console.log("[Service Request] Delivery days:", deliveryDays);
       const budgetAmount = customBudget || price;
       console.log("[Service Request] Budget amount:", budgetAmount);
-      console.log("[Service Request] Creating project...");
-      let project;
+      console.log("[Service Request] Creating service_request record...");
+      let serviceRequest;
       try {
-        project = await storage.createProject(req.user.id, {
-          title: `Service Request: ${service.title}`,
-          description: `**Service Requested:** ${service.title}
-**Tier:** ${tier.charAt(0).toUpperCase() + tier.slice(1)}
-**Listed Price:** $${price}
-
----
-
-**Client Requirements:**
-${requirements}`,
-          budgetMin: budgetAmount,
-          budgetMax: budgetAmount
-        });
-        console.log("[Service Request] Project created:", project.id);
-      } catch (projectError) {
-        console.error("[Service Request] Failed to create project:", projectError);
-        res.status(500).json({ error: "Failed to create project" });
-        return;
-      }
-      console.log("[Service Request] Creating proposal from provider:", service.providerId);
-      let proposal;
-      try {
-        proposal = await storage.createProposal(service.providerId, {
-          projectId: project.id,
-          coverLetter: `This is an automatic proposal for the "${service.title}" service you requested.
-
-**Tier:** ${tier.charAt(0).toUpperCase() + tier.slice(1)}
-**Price:** $${price}
-**Estimated Delivery:** ${deliveryDays} days
-
-I'll review your requirements and follow up shortly. Feel free to message me with any questions!`,
-          price,
+        serviceRequest = await storage.createServiceRequest(req.user.id, {
+          serviceId: service.id,
+          providerId: service.providerId,
+          tier,
+          requirements,
+          price: budgetAmount,
           deliveryDays
         });
-        console.log("[Service Request] Proposal created:", proposal.id);
-      } catch (proposalError) {
-        console.error("[Service Request] Failed to create proposal:", proposalError);
-        res.status(500).json({ error: "Failed to create proposal" });
+        console.log("[Service Request] service_request created:", serviceRequest.id);
+      } catch (srError) {
+        console.error("[Service Request] Failed to create service_request:", srError);
+        res.status(500).json({ error: "Failed to create service request" });
         return;
       }
-      console.log("[Service Request] Fetching project details...");
-      let projectWithDetails;
       try {
-        projectWithDetails = await storage.getProject(project.id);
-        if (!projectWithDetails) {
-          console.error("[Service Request] Project not found after creation:", project.id);
-          res.status(500).json({ error: "Failed to retrieve created project" });
-          return;
-        }
-        console.log("[Service Request] Project details fetched successfully");
-      } catch (fetchError) {
-        console.error("[Service Request] Failed to fetch project details:", fetchError);
-        res.status(500).json({ error: "Failed to retrieve project details" });
-        return;
+        await storage.createNotification(service.providerId, {
+          type: "service_request",
+          title: `New service request: ${service.title}`,
+          message: `${req.user.name} requested your service (${tier}) \u2014 review and respond.`,
+          linkUrl: `/dashboard`
+        });
+      } catch (notifyError) {
+        console.warn("[Service Request] Failed to create notification:", notifyError);
       }
       console.log("[Service Request] Success! Returning response");
       res.status(201).json({
-        project: projectWithDetails,
-        proposal,
-        message: "Service request created successfully"
+        serviceRequest,
+        message: "Service request created and provider notified"
       });
       return;
     } catch (error) {
       console.error("[Service Request] Unhandled error:", error);
       res.status(500).json({ error: "Failed to request service" });
+    }
+  });
+  app2.get("/api/service-requests", authMiddleware, async (req, res) => {
+    try {
+      if (req.user.role === "student") {
+        const list = await storage.getServiceRequests({ userId: req.user.id, role: "provider" });
+        res.json(list);
+        return;
+      }
+      if (req.user.role === "client") {
+        const list = await storage.getServiceRequests({ userId: req.user.id, role: "client" });
+        res.json(list);
+        return;
+      }
+      res.status(403).json({ error: "Not authorized" });
+    } catch (error) {
+      console.error("Get service requests error:", error);
+      res.status(500).json({ error: "Failed to get service requests" });
+    }
+  });
+  app2.post("/api/service-requests/:id/accept", authMiddleware, async (req, res) => {
+    try {
+      if (req.user.role !== "student") {
+        res.status(403).json({ error: "Only providers can accept requests" });
+        return;
+      }
+      const srList = await storage.getServiceRequests({});
+      const sr = srList.find((s) => s.id === req.params.id);
+      if (!sr) {
+        res.status(404).json({ error: "Service request not found" });
+        return;
+      }
+      if (sr.providerId !== req.user.id) {
+        res.status(403).json({ error: "Not authorized to accept this request" });
+        return;
+      }
+      if (sr.status !== "pending" && sr.status !== "countered") {
+        res.status(400).json({ error: "Request is not open for acceptance" });
+        return;
+      }
+      const project = await storage.createProject(sr.clientId, {
+        title: `Service Request: ${sr.serviceId}`,
+        description: `Service request for service ${sr.serviceId}
+
+Client requirements:
+${sr.requirements}`,
+        budgetMin: sr.price || null,
+        budgetMax: sr.price || null
+      });
+      const proposalPrice = sr.counterPrice ?? sr.price ?? 0;
+      const proposal = await storage.createProposal(req.user.id, {
+        projectId: project.id,
+        coverLetter: sr.counterMessage || `Proposal for service request ${sr.id}`,
+        price: proposalPrice,
+        deliveryDays: sr.counterDeliveryDays ?? sr.deliveryDays ?? 7
+      });
+      await storage.updateServiceRequest(sr.id, { status: "accepted" });
+      try {
+        await storage.createNotification(sr.clientId, {
+          type: "request_accepted",
+          title: "Your service request was accepted",
+          message: `Your request for service ${sr.serviceId} was accepted by ${req.user.name}`,
+          linkUrl: `/projects/${project.id}`
+        });
+      } catch (nErr) {
+        console.warn("Failed to notify client:", nErr);
+      }
+      res.json({ project, proposal });
+    } catch (error) {
+      console.error("Accept service request error:", error);
+      res.status(500).json({ error: "Failed to accept service request" });
+    }
+  });
+  app2.post("/api/service-requests/:id/decline", authMiddleware, async (req, res) => {
+    try {
+      if (req.user.role !== "student") {
+        res.status(403).json({ error: "Only providers can decline requests" });
+        return;
+      }
+      const srList = await storage.getServiceRequests({});
+      const sr = srList.find((s) => s.id === req.params.id);
+      if (!sr) {
+        res.status(404).json({ error: "Service request not found" });
+        return;
+      }
+      if (sr.providerId !== req.user.id) {
+        res.status(403).json({ error: "Not authorized to decline this request" });
+        return;
+      }
+      await storage.updateServiceRequest(sr.id, { status: "declined" });
+      await storage.createNotification(sr.clientId, {
+        type: "request_declined",
+        title: "Service request declined",
+        message: `${req.user.name} declined your service request for ${sr.serviceId}`,
+        linkUrl: `/services/${sr.serviceId}`
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Decline service request error:", error);
+      res.status(500).json({ error: "Failed to decline service request" });
+    }
+  });
+  app2.post("/api/service-requests/:id/counter", authMiddleware, async (req, res) => {
+    try {
+      if (req.user.role !== "student") {
+        res.status(403).json({ error: "Only providers can counter requests" });
+        return;
+      }
+      const { counterPrice, counterDeliveryDays, counterMessage } = req.body;
+      const srList = await storage.getServiceRequests({});
+      const sr = srList.find((s) => s.id === req.params.id);
+      if (!sr) {
+        res.status(404).json({ error: "Service request not found" });
+        return;
+      }
+      if (sr.providerId !== req.user.id) {
+        res.status(403).json({ error: "Not authorized to counter this request" });
+        return;
+      }
+      await storage.updateServiceRequest(sr.id, {
+        status: "countered",
+        counterPrice: counterPrice ?? null,
+        counterDeliveryDays: counterDeliveryDays ?? null,
+        counterMessage: counterMessage ?? null
+      });
+      await storage.createNotification(sr.clientId, {
+        type: "request_countered",
+        title: "Your service request has a counter-offer",
+        message: `${req.user.name} sent a counter-offer for your request`,
+        linkUrl: `/requests/${sr.id}`
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Counter service request error:", error);
+      res.status(500).json({ error: "Failed to send counter-offer" });
+    }
+  });
+  app2.get("/api/notifications", authMiddleware, async (req, res) => {
+    try {
+      const list = await storage.getNotifications(req.user.id);
+      res.json(list);
+    } catch (error) {
+      console.error("Get notifications error:", error);
+      res.status(500).json({ error: "Failed to get notifications" });
+    }
+  });
+  app2.post("/api/notifications/:id/read", authMiddleware, async (req, res) => {
+    try {
+      await storage.markNotificationRead(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mark notification read error:", error);
+      res.status(500).json({ error: "Failed to mark notification read" });
     }
   });
   app2.get("/api/projects", authMiddleware, async (req, res) => {
@@ -1842,6 +2082,33 @@ I'll review your requirements and follow up shortly. Feel free to message me wit
   });
   app2.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+  });
+  app2.get("/api/health/db", async (_req, res) => {
+    try {
+      const isTurso = process.env.DATABASE_URL?.startsWith("libsql://");
+      const result = await storage.getUser("health-check-test");
+      res.json({
+        status: "ok",
+        database: isTurso ? "turso" : "local-sqlite",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        env: {
+          DATABASE_URL_SET: !!process.env.DATABASE_URL,
+          TURSO_AUTH_TOKEN_SET: !!process.env.TURSO_AUTH_TOKEN
+        }
+      });
+    } catch (error) {
+      console.error("Database health check failed:", error);
+      res.status(503).json({
+        status: "error",
+        database: process.env.DATABASE_URL?.startsWith("libsql://") ? "turso" : "local-sqlite",
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        env: {
+          DATABASE_URL_SET: !!process.env.DATABASE_URL,
+          TURSO_AUTH_TOKEN_SET: !!process.env.TURSO_AUTH_TOKEN
+        }
+      });
+    }
   });
 }
 

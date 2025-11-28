@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
+import { sql } from "drizzle-orm";
 import {
   users,
   profiles,
@@ -9,6 +10,10 @@ import {
   proposals,
   reviews,
   messages,
+  transactions,
+  disputes,
+  serviceRequests,
+  notifications,
 } from "@shared/schema";
 
 const SALT_ROUNDS = 10;
@@ -374,6 +379,23 @@ const mockProjects = [
 
 async function seed() {
   console.log("🌱 Starting database seed...\n");
+
+  // --------------------------------------------------------------------------
+  // Clear existing data (in correct order due to foreign keys)
+  // --------------------------------------------------------------------------
+  console.log("🧹 Clearing existing data...");
+  await db.delete(notifications);
+  await db.delete(serviceRequests);
+  await db.delete(disputes);
+  await db.delete(reviews);
+  await db.delete(messages);
+  await db.delete(transactions);
+  await db.delete(proposals);
+  await db.delete(projects);
+  await db.delete(services);
+  await db.delete(profiles);
+  await db.delete(users);
+  console.log("   ✓ All tables cleared\n");
 
   const defaultPassword = await hashPassword("password123");
   const studentIds: string[] = [];
