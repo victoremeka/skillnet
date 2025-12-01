@@ -298,13 +298,13 @@ export default function CreateService({ user }: CreateServiceProps) {
                       name="priceBasic"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Basic ($)</FormLabel>
+                          <FormLabel>Basic (₦)</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
                               min="1"
-                              step="0.01"
-                              placeholder="25"
+                              step="1"
+                              placeholder="40000"
                               {...field}
                             />
                           </FormControl>
@@ -338,13 +338,13 @@ export default function CreateService({ user }: CreateServiceProps) {
                       name="priceStandard"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Standard ($)</FormLabel>
+                          <FormLabel>Standard (₦)</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
                               min="1"
-                              step="0.01"
-                              placeholder="50"
+                              step="1"
+                              placeholder="80000"
                               {...field}
                             />
                           </FormControl>
@@ -378,13 +378,13 @@ export default function CreateService({ user }: CreateServiceProps) {
                       name="pricePremium"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Premium ($)</FormLabel>
+                          <FormLabel>Premium (₦)</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
                               min="1"
-                              step="0.01"
-                              placeholder="100"
+                              step="1"
+                              placeholder="150000"
                               {...field}
                             />
                           </FormControl>

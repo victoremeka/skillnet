@@ -397,12 +397,12 @@ export default function ProjectDetail({ projectId, user }: ProjectDetailProps) {
                                   name="price"
                                   render={({ field }) => (
                                     <FormItem>
-                                      <FormLabel>Your Price ($)</FormLabel>
+                                      <FormLabel>Your Price (₦)</FormLabel>
                                       <FormControl>
                                         <Input
                                           type="number"
                                           min="1"
-                                          placeholder="250"
+                                          placeholder="400000"
                                           {...field}
                                         />
                                       </FormControl>

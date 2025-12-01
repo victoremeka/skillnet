@@ -21,7 +21,8 @@ import {
   type SafeUser,
 } from "@shared/schema";
 
-const JWT_SECRET = process.env.JWT_SECRET || "skillnet-dev-secret-change-in-production";
+const JWT_SECRET =
+  process.env.JWT_SECRET || "skillnet-dev-secret-change-in-production";
 const SALT_ROUNDS = 10;
 
 // Extended Request type with user
@@ -36,7 +37,7 @@ interface AuthRequest extends Request {
 async function authMiddleware(
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   try {
     const authHeader = req.headers.authorization;
@@ -65,7 +66,7 @@ async function authMiddleware(
 async function optionalAuthMiddleware(
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   try {
     const authHeader = req.headers.authorization;
@@ -87,7 +88,7 @@ async function optionalAuthMiddleware(
 async function adminMiddleware(
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   if (!req.user || req.user.role !== "admin") {
     res.status(403).json({ error: "Admin access required" });
@@ -136,7 +137,9 @@ export function registerRoutes(app: Express): void {
 
       // Validate student requires university email
       if (userData.role === "student" && !userData.universityEmail) {
-        res.status(400).json({ error: "University email required for students" });
+        res
+          .status(400)
+          .json({ error: "University email required for students" });
         return;
       }
 
@@ -155,7 +158,9 @@ export function registerRoutes(app: Express): void {
 
       // Log verification code for students (mock email)
       if (user.role === "student" && user.verificationCode) {
-        console.log(`[SkillNet] Verification code for ${user.email}: ${user.verificationCode}`);
+        console.log(
+          `[SkillNet] Verification code for ${user.email}: ${user.verificationCode}`,
+        );
       }
 
       const token = generateToken(user.id);
@@ -218,7 +223,9 @@ export function registerRoutes(app: Express): void {
         }
 
         if (req.user!.role !== "student") {
-          res.status(400).json({ error: "Only students can verify university email" });
+          res
+            .status(400)
+            .json({ error: "Only students can verify university email" });
           return;
         }
 
@@ -227,7 +234,10 @@ export function registerRoutes(app: Express): void {
           return;
         }
 
-        const user = await storage.verifyUniversityEmail(req.user!.id, parsed.data.code);
+        const user = await storage.verifyUniversityEmail(
+          req.user!.id,
+          parsed.data.code,
+        );
         if (!user) {
           res.status(400).json({ error: "Invalid verification code" });
           return;
@@ -238,64 +248,80 @@ export function registerRoutes(app: Express): void {
         console.error("Verification error:", error);
         res.status(500).json({ error: "Failed to verify email" });
       }
-    }
+    },
   );
 
   // Get current user
-  app.get("/api/auth/me", authMiddleware, async (req: AuthRequest, res: Response) => {
-    res.json({ user: sanitizeUser(req.user!) });
-  });
+  app.get(
+    "/api/auth/me",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      res.json({ user: sanitizeUser(req.user!) });
+    },
+  );
 
   // ==========================================================================
   // PROFILE ROUTES
   // ==========================================================================
 
   // Get current user's profile
-  app.get("/api/profile", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      const userWithProfile = await storage.getUserWithProfile(req.user!.id);
-      if (!userWithProfile) {
-        res.status(404).json({ error: "Profile not found" });
-        return;
+  app.get(
+    "/api/profile",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const userWithProfile = await storage.getUserWithProfile(req.user!.id);
+        if (!userWithProfile) {
+          res.status(404).json({ error: "Profile not found" });
+          return;
+        }
+        res.json(userWithProfile);
+      } catch (error) {
+        console.error("Get profile error:", error);
+        res.status(500).json({ error: "Failed to get profile" });
       }
-      res.json(userWithProfile);
-    } catch (error) {
-      console.error("Get profile error:", error);
-      res.status(500).json({ error: "Failed to get profile" });
-    }
-  });
+    },
+  );
 
   // Update current user's profile
-  app.patch("/api/profile", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      if (req.user!.role !== "student") {
-        res.status(403).json({ error: "Only students have profiles to update" });
-        return;
-      }
+  app.patch(
+    "/api/profile",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        if (req.user!.role !== "student") {
+          res
+            .status(403)
+            .json({ error: "Only students have profiles to update" });
+          return;
+        }
 
-      const parsed = updateProfileSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({ error: parsed.error.errors[0].message });
-        return;
-      }
+        const parsed = updateProfileSchema.safeParse(req.body);
+        if (!parsed.success) {
+          res.status(400).json({ error: parsed.error.errors[0].message });
+          return;
+        }
 
-      const profile = await storage.updateProfile(req.user!.id, parsed.data);
-      if (!profile) {
-        res.status(404).json({ error: "Profile not found" });
-        return;
-      }
+        const profile = await storage.updateProfile(req.user!.id, parsed.data);
+        if (!profile) {
+          res.status(404).json({ error: "Profile not found" });
+          return;
+        }
 
-      res.json(profile);
-    } catch (error) {
-      console.error("Update profile error:", error);
-      res.status(500).json({ error: "Failed to update profile" });
-    }
-  });
+        res.json(profile);
+      } catch (error) {
+        console.error("Update profile error:", error);
+        res.status(500).json({ error: "Failed to update profile" });
+      }
+    },
+  );
 
   // Get another user's public profile
   app.get("/api/users/:userId/profile", async (req: Request, res: Response) => {
     try {
-      const userWithProfile = await storage.getUserWithProfile(req.params.userId);
+      const userWithProfile = await storage.getUserWithProfile(
+        req.params.userId,
+      );
       if (!userWithProfile) {
         res.status(404).json({ error: "User not found" });
         return;
@@ -318,8 +344,12 @@ export function registerRoutes(app: Express): void {
         category: req.query.category as string | undefined,
         providerId: req.query.providerId as string | undefined,
         search: req.query.search as string | undefined,
-        minPrice: req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined,
-        maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
+        minPrice: req.query.minPrice
+          ? parseFloat(req.query.minPrice as string)
+          : undefined,
+        maxPrice: req.query.maxPrice
+          ? parseFloat(req.query.maxPrice as string)
+          : undefined,
       };
 
       const services = await storage.getServices(filters);
@@ -346,517 +376,817 @@ export function registerRoutes(app: Express): void {
   });
 
   // Create service
-  app.post("/api/services", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      if (req.user!.role !== "student") {
-        res.status(403).json({ error: "Only students can create services" });
-        return;
-      }
+  app.post(
+    "/api/services",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        if (req.user!.role !== "student") {
+          res.status(403).json({ error: "Only students can create services" });
+          return;
+        }
 
-      const parsed = insertServiceSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({ error: parsed.error.errors[0].message });
-        return;
-      }
+        const parsed = insertServiceSchema.safeParse(req.body);
+        if (!parsed.success) {
+          res.status(400).json({ error: parsed.error.errors[0].message });
+          return;
+        }
 
-      const service = await storage.createService(req.user!.id, parsed.data);
-      res.status(201).json(service);
-    } catch (error) {
-      console.error("Create service error:", error);
-      res.status(500).json({ error: "Failed to create service" });
-    }
-  });
+        const service = await storage.createService(req.user!.id, parsed.data);
+        res.status(201).json(service);
+      } catch (error) {
+        console.error("Create service error:", error);
+        res.status(500).json({ error: "Failed to create service" });
+      }
+    },
+  );
 
   // Update service
-  app.patch("/api/services/:id", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      const service = await storage.getService(req.params.id);
-      if (!service) {
-        res.status(404).json({ error: "Service not found" });
-        return;
-      }
+  app.patch(
+    "/api/services/:id",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const service = await storage.getService(req.params.id);
+        if (!service) {
+          res.status(404).json({ error: "Service not found" });
+          return;
+        }
 
-      if (service.providerId !== req.user!.id) {
-        res.status(403).json({ error: "You can only edit your own services" });
-        return;
-      }
+        if (service.providerId !== req.user!.id) {
+          res
+            .status(403)
+            .json({ error: "You can only edit your own services" });
+          return;
+        }
 
-      const parsed = updateServiceSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({ error: parsed.error.errors[0].message });
-        return;
-      }
+        const parsed = updateServiceSchema.safeParse(req.body);
+        if (!parsed.success) {
+          res.status(400).json({ error: parsed.error.errors[0].message });
+          return;
+        }
 
-      const updated = await storage.updateService(req.params.id, parsed.data);
-      res.json(updated);
-    } catch (error) {
-      console.error("Update service error:", error);
-      res.status(500).json({ error: "Failed to update service" });
-    }
-  });
+        const updated = await storage.updateService(req.params.id, parsed.data);
+        res.json(updated);
+      } catch (error) {
+        console.error("Update service error:", error);
+        res.status(500).json({ error: "Failed to update service" });
+      }
+    },
+  );
 
   // Delete service
-  app.delete("/api/services/:id", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      const service = await storage.getService(req.params.id);
-      if (!service) {
-        res.status(404).json({ error: "Service not found" });
-        return;
-      }
-
-      if (service.providerId !== req.user!.id) {
-        res.status(403).json({ error: "You can only delete your own services" });
-        return;
-      }
-
-      await storage.deleteService(req.params.id);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Delete service error:", error);
-      res.status(500).json({ error: "Failed to delete service" });
-    }
-  });
-
-  // Request a service (creates project + auto-proposal)
-  app.post("/api/services/:id/request", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      console.log("[Service Request] Starting request for service:", req.params.id);
-      console.log("[Service Request] User:", req.user?.id, "Role:", req.user?.role);
-      
-      if (req.user!.role !== "client") {
-        console.log("[Service Request] Rejected: User is not a client");
-        res.status(403).json({ error: "Only clients can request services" });
-        return;
-      }
-
-      console.log("[Service Request] Fetching service...");
-      const service = await storage.getService(req.params.id);
-      if (!service) {
-        console.log("[Service Request] Service not found:", req.params.id);
-        res.status(404).json({ error: "Service not found" });
-        return;
-      }
-      console.log("[Service Request] Service found:", service.title, "Provider:", service.providerId);
-
-      const { tier, requirements, customBudget } = req.body as {
-        tier: "basic" | "standard" | "premium";
-        requirements: string;
-        customBudget?: number;
-      };
-
-      console.log("[Service Request] Request data - Tier:", tier, "Requirements length:", requirements?.length);
-
-      if (!tier || !requirements) {
-        console.log("[Service Request] Missing tier or requirements");
-        res.status(400).json({ error: "Tier and requirements are required" });
-        return;
-      }
-
-      if (requirements.length < 20) {
-        console.log("[Service Request] Requirements too short:", requirements.length);
-        res.status(400).json({ error: "Please provide more detail about your requirements (at least 20 characters)" });
-        return;
-      }
-
-      // Get price based on tier
-      let price: number;
-      switch (tier) {
-        case "basic":
-          price = service.priceBasic || 0;
-          break;
-        case "standard":
-          price = service.priceStandard || 0;
-          break;
-        case "premium":
-          price = service.pricePremium || 0;
-          break;
-        default:
-          console.log("[Service Request] Invalid tier:", tier);
-          res.status(400).json({ error: "Invalid tier selected" });
+  app.delete(
+    "/api/services/:id",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const service = await storage.getService(req.params.id);
+        if (!service) {
+          res.status(404).json({ error: "Service not found" });
           return;
+        }
+
+        if (service.providerId !== req.user!.id) {
+          res
+            .status(403)
+            .json({ error: "You can only delete your own services" });
+          return;
+        }
+
+        await storage.deleteService(req.params.id);
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Delete service error:", error);
+        res.status(500).json({ error: "Failed to delete service" });
       }
+    },
+  );
 
-      console.log("[Service Request] Price for tier", tier, ":", price);
-
-      if (price === 0) {
-        console.log("[Service Request] Tier not available (price is 0)");
-        res.status(400).json({ error: "Selected tier is not available for this service" });
-        return;
-      }
-
-      // Calculate delivery days based on tier
-      const baseDelivery = service.deliveryDays || 7;
-      let deliveryDays: number;
-      switch (tier) {
-        case "basic":
-          deliveryDays = baseDelivery;
-          break;
-        case "standard":
-          deliveryDays = Math.ceil(baseDelivery * 1.5);
-          break;
-        case "premium":
-          deliveryDays = baseDelivery * 2;
-          break;
-        default:
-          deliveryDays = baseDelivery;
-      }
-
-      console.log("[Service Request] Delivery days:", deliveryDays);
-
-      // Use custom budget if provided, otherwise use tier price
-      const budgetAmount = customBudget || price;
-      console.log("[Service Request] Budget amount:", budgetAmount);
-
-      // Create a service_request record and notify the provider
-      console.log("[Service Request] Creating service_request record...");
-      let serviceRequest;
+  // Request a service (creates service_request for provider to review)
+  app.post(
+    "/api/services/:id/request",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
       try {
-        serviceRequest = await storage.createServiceRequest(req.user!.id, {
-          serviceId: service.id,
-          providerId: service.providerId,
+        console.log(
+          "[Service Request] Starting request for service:",
+          req.params.id,
+        );
+        console.log(
+          "[Service Request] User:",
+          req.user?.id,
+          "Role:",
+          req.user?.role,
+        );
+
+        if (req.user!.role !== "client") {
+          console.log("[Service Request] Rejected: User is not a client");
+          res.status(403).json({ error: "Only clients can request services" });
+          return;
+        }
+
+        console.log("[Service Request] Fetching service...");
+        const service = await storage.getService(req.params.id);
+        if (!service) {
+          console.log("[Service Request] Service not found:", req.params.id);
+          res.status(404).json({ error: "Service not found" });
+          return;
+        }
+        console.log(
+          "[Service Request] Service found:",
+          service.title,
+          "Provider:",
+          service.providerId,
+        );
+
+        const { tier, requirements, customBudget } = req.body as {
+          tier: "basic" | "standard" | "premium";
+          requirements: string;
+          customBudget?: number;
+        };
+
+        console.log(
+          "[Service Request] Request data - Tier:",
           tier,
-          requirements,
-          price: budgetAmount,
-          deliveryDays,
+          "Requirements length:",
+          requirements?.length,
+        );
+
+        if (!tier || !requirements) {
+          console.log("[Service Request] Missing tier or requirements");
+          res.status(400).json({ error: "Tier and requirements are required" });
+          return;
+        }
+
+        if (requirements.length < 20) {
+          console.log(
+            "[Service Request] Requirements too short:",
+            requirements.length,
+          );
+          res.status(400).json({
+            error:
+              "Please provide more detail about your requirements (at least 20 characters)",
+          });
+          return;
+        }
+
+        // Get price based on tier
+        let price: number;
+        switch (tier) {
+          case "basic":
+            price = service.priceBasic || 0;
+            break;
+          case "standard":
+            price = service.priceStandard || 0;
+            break;
+          case "premium":
+            price = service.pricePremium || 0;
+            break;
+          default:
+            console.log("[Service Request] Invalid tier:", tier);
+            res.status(400).json({ error: "Invalid tier selected" });
+            return;
+        }
+
+        console.log("[Service Request] Price for tier", tier, ":", price);
+
+        if (price === 0) {
+          console.log("[Service Request] Tier not available (price is 0)");
+          res
+            .status(400)
+            .json({ error: "Selected tier is not available for this service" });
+          return;
+        }
+
+        // Calculate delivery days based on tier
+        const baseDelivery = service.deliveryDays || 7;
+        let deliveryDays: number;
+        switch (tier) {
+          case "basic":
+            deliveryDays = baseDelivery;
+            break;
+          case "standard":
+            deliveryDays = Math.ceil(baseDelivery * 1.5);
+            break;
+          case "premium":
+            deliveryDays = baseDelivery * 2;
+            break;
+          default:
+            deliveryDays = baseDelivery;
+        }
+
+        console.log("[Service Request] Delivery days:", deliveryDays);
+
+        // Use custom budget if provided, otherwise use tier price
+        const budgetAmount = customBudget || price;
+        console.log("[Service Request] Budget amount:", budgetAmount);
+
+        // Format tier label for display
+        const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
+
+        // Create service_request record (pending status - provider must accept/decline/counter)
+        console.log("[Service Request] Creating service_request record...");
+        let serviceRequest;
+        try {
+          serviceRequest = await storage.createServiceRequest(req.user!.id, {
+            serviceId: service.id,
+            providerId: service.providerId,
+            tier,
+            requirements,
+            price: budgetAmount,
+            deliveryDays,
+          });
+          console.log(
+            "[Service Request] service_request created:",
+            serviceRequest.id,
+          );
+        } catch (srError) {
+          console.error(
+            "[Service Request] Failed to create service_request:",
+            srError,
+          );
+          res.status(500).json({ error: "Failed to create service request" });
+          return;
+        }
+
+        // Notify the provider in-app
+        try {
+          await storage.createNotification(service.providerId, {
+            type: "service_request",
+            title: `New service request: ${service.title}`,
+            message: `${req.user!.name} requested your ${tierLabel} tier service. Review and respond.`,
+            linkUrl: `/dashboard`,
+          });
+        } catch (notifyError) {
+          console.warn(
+            "[Service Request] Failed to create notification:",
+            notifyError,
+          );
+        }
+
+        console.log("[Service Request] Success! Returning response");
+        res.status(201).json({
+          serviceRequest,
+          message: "Service request sent to provider for review",
         });
-        console.log("[Service Request] service_request created:", serviceRequest.id);
-      } catch (srError) {
-        console.error("[Service Request] Failed to create service_request:", srError);
-        res.status(500).json({ error: "Failed to create service request" });
         return;
+      } catch (error) {
+        console.error("[Service Request] Unhandled error:", error);
+        res.status(500).json({ error: "Failed to request service" });
       }
-
-      // Notify the provider in-app
-      try {
-        await storage.createNotification(service.providerId, {
-          type: "service_request",
-          title: `New service request: ${service.title}`,
-          message: `${req.user!.name} requested your service (${tier}) — review and respond.`,
-          linkUrl: `/dashboard`,
-        });
-      } catch (notifyError) {
-        console.warn("[Service Request] Failed to create notification:", notifyError);
-      }
-
-      console.log("[Service Request] Success! Returning response");
-      res.status(201).json({
-        serviceRequest,
-        message: "Service request created and provider notified",
-      });
-      return;
-    } catch (error) {
-      console.error("[Service Request] Unhandled error:", error);
-      res.status(500).json({ error: "Failed to request service" });
-    }
-  });
+    },
+  );
 
   // Get service requests for current user (provider sees incoming requests, client sees their requests)
-  app.get("/api/service-requests", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      if (req.user!.role === "student") {
-        const list = await storage.getServiceRequests({ userId: req.user!.id, role: "provider" });
-        res.json(list);
-        return;
-      }
+  app.get(
+    "/api/service-requests",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        if (req.user!.role === "student") {
+          const list = await storage.getServiceRequests({
+            userId: req.user!.id,
+            role: "provider",
+          });
+          res.json(list);
+          return;
+        }
 
-      // clients see requests they created
-      if (req.user!.role === "client") {
-        const list = await storage.getServiceRequests({ userId: req.user!.id, role: "client" });
-        res.json(list);
-        return;
-      }
+        // clients see requests they created
+        if (req.user!.role === "client") {
+          const list = await storage.getServiceRequests({
+            userId: req.user!.id,
+            role: "client",
+          });
+          res.json(list);
+          return;
+        }
 
-      res.status(403).json({ error: "Not authorized" });
-    } catch (error) {
-      console.error("Get service requests error:", error);
-      res.status(500).json({ error: "Failed to get service requests" });
-    }
-  });
+        res.status(403).json({ error: "Not authorized" });
+      } catch (error) {
+        console.error("Get service requests error:", error);
+        res.status(500).json({ error: "Failed to get service requests" });
+      }
+    },
+  );
 
   // Provider accepts a service request -> create project + proposal, notify client
-  app.post("/api/service-requests/:id/accept", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      if (req.user!.role !== "student") {
-        res.status(403).json({ error: "Only providers can accept requests" });
-        return;
-      }
-
-      const srList = await storage.getServiceRequests({});
-      const sr = srList.find((s) => s.id === req.params.id);
-      if (!sr) {
-        res.status(404).json({ error: "Service request not found" });
-        return;
-      }
-
-      if (sr.providerId !== req.user!.id) {
-        res.status(403).json({ error: "Not authorized to accept this request" });
-        return;
-      }
-
-      if (sr.status !== "pending" && sr.status !== "countered") {
-        res.status(400).json({ error: "Request is not open for acceptance" });
-        return;
-      }
-
-      // Create project
-      const project = await storage.createProject(sr.clientId, {
-        title: `Service Request: ${sr.serviceId}`,
-        description: `Service request for service ${sr.serviceId}\n\nClient requirements:\n${sr.requirements}`,
-        budgetMin: sr.price || null,
-        budgetMax: sr.price || null,
-      });
-
-      // Create proposal from provider using either counter or original price
-      const proposalPrice = sr.counterPrice ?? sr.price ?? 0;
-      const proposal = await storage.createProposal(req.user!.id, {
-        projectId: project.id,
-        coverLetter: sr.counterMessage || `Proposal for service request ${sr.id}`,
-        price: proposalPrice,
-        deliveryDays: sr.counterDeliveryDays ?? sr.deliveryDays ?? 7,
-      });
-
-      // Update service request status
-      await storage.updateServiceRequest(sr.id, { status: "accepted" });
-
-      // Notify client
+  app.post(
+    "/api/service-requests/:id/accept",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
       try {
-        await storage.createNotification(sr.clientId, {
-          type: "request_accepted",
-          title: "Your service request was accepted",
-          message: `Your request for service ${sr.serviceId} was accepted by ${req.user!.name}`,
-          linkUrl: `/projects/${project.id}`,
-        });
-      } catch (nErr) {
-        console.warn("Failed to notify client:", nErr);
-      }
+        if (req.user!.role !== "student") {
+          res.status(403).json({ error: "Only providers can accept requests" });
+          return;
+        }
 
-      res.json({ project, proposal });
-    } catch (error) {
-      console.error("Accept service request error:", error);
-      res.status(500).json({ error: "Failed to accept service request" });
-    }
-  });
+        const srList = await storage.getServiceRequests({});
+        const sr = srList.find((s) => s.id === req.params.id);
+        if (!sr) {
+          res.status(404).json({ error: "Service request not found" });
+          return;
+        }
+
+        if (sr.providerId !== req.user!.id) {
+          res
+            .status(403)
+            .json({ error: "Not authorized to accept this request" });
+          return;
+        }
+
+        if (sr.status !== "pending" && sr.status !== "countered") {
+          res.status(400).json({ error: "Request is not open for acceptance" });
+          return;
+        }
+
+        // Get service details for better project title/description
+        const service = await storage.getService(sr.serviceId);
+        const serviceName = service?.title || sr.serviceId;
+        const tierLabel = sr.tier
+          ? sr.tier.charAt(0).toUpperCase() + sr.tier.slice(1)
+          : "";
+
+        // Create project
+        const project = await storage.createProject(sr.clientId, {
+          title: `${serviceName}${tierLabel ? ` (${tierLabel})` : ""}`,
+          description: `${service?.description || ""}\n\n**Tier:** ${tierLabel || "Standard"}\n**Requirements:**\n${sr.requirements}`,
+          budgetMin: sr.counterPrice ?? sr.price ?? null,
+          budgetMax: sr.counterPrice ?? sr.price ?? null,
+        });
+
+        // Create proposal from provider using either counter or original price
+        const proposalPrice = sr.counterPrice ?? sr.price ?? 0;
+        const proposalDays = sr.counterDeliveryDays ?? sr.deliveryDays ?? 7;
+
+        // Build cover letter based on service tier description
+        let tierDescription: string = "";
+        if (service && sr.tier) {
+          tierDescription =
+            (sr.tier === "basic"
+              ? service.descriptionBasic
+              : sr.tier === "standard"
+                ? service.descriptionStandard
+                : service.descriptionPremium) || "";
+        }
+
+        const proposal = await storage.createProposal(req.user!.id, {
+          projectId: project.id,
+          coverLetter:
+            sr.counterMessage ||
+            `Thank you for your interest in my ${tierLabel} tier service!\n\nI'll deliver:\n${tierDescription || "As described in the service listing."}\n\nLooking forward to working with you!`,
+          price: proposalPrice,
+          deliveryDays: proposalDays,
+        });
+
+        // Update service request status
+        await storage.updateServiceRequest(sr.id, { status: "accepted" });
+
+        // Notify client
+        try {
+          await storage.createNotification(sr.clientId, {
+            type: "request_accepted",
+            title: "Your service request was accepted!",
+            message: `${req.user!.name} accepted your request for "${serviceName}". View the project to continue.`,
+            linkUrl: `/projects/${project.id}`,
+          });
+        } catch (nErr) {
+          console.warn("Failed to notify client:", nErr);
+        }
+
+        res.json({ project, proposal, message: "Service request accepted" });
+      } catch (error) {
+        console.error("Accept service request error:", error);
+        res.status(500).json({ error: "Failed to accept service request" });
+      }
+    },
+  );
 
   // Provider declines a service request
-  app.post("/api/service-requests/:id/decline", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      if (req.user!.role !== "student") {
-        res.status(403).json({ error: "Only providers can decline requests" });
-        return;
+  app.post(
+    "/api/service-requests/:id/decline",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        if (req.user!.role !== "student") {
+          res
+            .status(403)
+            .json({ error: "Only providers can decline requests" });
+          return;
+        }
+
+        const srList = await storage.getServiceRequests({});
+        const sr = srList.find((s) => s.id === req.params.id);
+        if (!sr) {
+          res.status(404).json({ error: "Service request not found" });
+          return;
+        }
+
+        if (sr.providerId !== req.user!.id) {
+          res
+            .status(403)
+            .json({ error: "Not authorized to decline this request" });
+          return;
+        }
+
+        await storage.updateServiceRequest(sr.id, { status: "declined" });
+        await storage.createNotification(sr.clientId, {
+          type: "request_declined",
+          title: "Service request declined",
+          message: `${req.user!.name} declined your service request for ${sr.serviceId}`,
+          linkUrl: `/services/${sr.serviceId}`,
+        });
+
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Decline service request error:", error);
+        res.status(500).json({ error: "Failed to decline service request" });
       }
-
-      const srList = await storage.getServiceRequests({});
-      const sr = srList.find((s) => s.id === req.params.id);
-      if (!sr) {
-        res.status(404).json({ error: "Service request not found" });
-        return;
-      }
-
-      if (sr.providerId !== req.user!.id) {
-        res.status(403).json({ error: "Not authorized to decline this request" });
-        return;
-      }
-
-      await storage.updateServiceRequest(sr.id, { status: "declined" });
-      await storage.createNotification(sr.clientId, {
-        type: "request_declined",
-        title: "Service request declined",
-        message: `${req.user!.name} declined your service request for ${sr.serviceId}`,
-        linkUrl: `/services/${sr.serviceId}`,
-      });
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Decline service request error:", error);
-      res.status(500).json({ error: "Failed to decline service request" });
-    }
-  });
+    },
+  );
 
   // Provider sends a single counter-offer
-  app.post("/api/service-requests/:id/counter", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      if (req.user!.role !== "student") {
-        res.status(403).json({ error: "Only providers can counter requests" });
-        return;
+  app.post(
+    "/api/service-requests/:id/counter",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        if (req.user!.role !== "student") {
+          res
+            .status(403)
+            .json({ error: "Only providers can counter requests" });
+          return;
+        }
+
+        const { counterPrice, counterDeliveryDays, counterMessage } =
+          req.body as {
+            counterPrice?: number;
+            counterDeliveryDays?: number;
+            counterMessage?: string;
+          };
+
+        const srList = await storage.getServiceRequests({});
+        const sr = srList.find((s) => s.id === req.params.id);
+        if (!sr) {
+          res.status(404).json({ error: "Service request not found" });
+          return;
+        }
+
+        if (sr.providerId !== req.user!.id) {
+          res
+            .status(403)
+            .json({ error: "Not authorized to counter this request" });
+          return;
+        }
+
+        await storage.updateServiceRequest(sr.id, {
+          status: "countered",
+          counterPrice: counterPrice ?? null,
+          counterDeliveryDays: counterDeliveryDays ?? null,
+          counterMessage: counterMessage ?? null,
+        });
+
+        await storage.createNotification(sr.clientId, {
+          type: "request_countered",
+          title: "Your service request has a counter-offer",
+          message: `${req.user!.name} sent a counter-offer for your request.`,
+          linkUrl: `/dashboard`,
+        });
+
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Counter service request error:", error);
+        res.status(500).json({ error: "Failed to send counter-offer" });
       }
+    },
+  );
 
-      const { counterPrice, counterDeliveryDays, counterMessage } = req.body as {
-        counterPrice?: number;
-        counterDeliveryDays?: number;
-        counterMessage?: string;
-      };
+  // Client accepts a counter-offer -> create project + proposal
+  app.post(
+    "/api/service-requests/:id/accept-counter",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        if (req.user!.role !== "client") {
+          res
+            .status(403)
+            .json({ error: "Only clients can accept counter-offers" });
+          return;
+        }
 
-      const srList = await storage.getServiceRequests({});
-      const sr = srList.find((s) => s.id === req.params.id);
-      if (!sr) {
-        res.status(404).json({ error: "Service request not found" });
-        return;
+        const srList = await storage.getServiceRequests({});
+        const sr = srList.find((s) => s.id === req.params.id);
+        if (!sr) {
+          res.status(404).json({ error: "Service request not found" });
+          return;
+        }
+
+        if (sr.clientId !== req.user!.id) {
+          res
+            .status(403)
+            .json({ error: "Not authorized to accept this counter-offer" });
+          return;
+        }
+
+        if (sr.status !== "countered") {
+          res
+            .status(400)
+            .json({ error: "This request does not have a counter-offer" });
+          return;
+        }
+
+        // Get service details for better project title/description
+        const service = await storage.getService(sr.serviceId);
+        const serviceName = service?.title || sr.serviceId;
+        const tierLabel = sr.tier
+          ? sr.tier.charAt(0).toUpperCase() + sr.tier.slice(1)
+          : "";
+
+        // Create project using counter-offer terms
+        const project = await storage.createProject(sr.clientId, {
+          title: `${serviceName}${tierLabel ? ` (${tierLabel})` : ""}`,
+          description: `${service?.description || ""}\n\n**Tier:** ${tierLabel || "Standard"}\n**Requirements:**\n${sr.requirements}`,
+          budgetMin: sr.counterPrice ?? sr.price ?? null,
+          budgetMax: sr.counterPrice ?? sr.price ?? null,
+        });
+
+        // Create proposal from provider using counter terms
+        const proposalPrice = sr.counterPrice ?? sr.price ?? 0;
+        const proposalDays = sr.counterDeliveryDays ?? sr.deliveryDays ?? 7;
+
+        // Build cover letter based on service tier description
+        let tierDescription: string = "";
+        if (service && sr.tier) {
+          tierDescription =
+            (sr.tier === "basic"
+              ? service.descriptionBasic
+              : sr.tier === "standard"
+                ? service.descriptionStandard
+                : service.descriptionPremium) || "";
+        }
+
+        const proposal = await storage.createProposal(sr.providerId, {
+          projectId: project.id,
+          coverLetter:
+            sr.counterMessage ||
+            `Thank you for accepting my counter-offer for the ${tierLabel} tier service!\n\nI'll deliver:\n${tierDescription || "As described in the service listing."}\n\nLooking forward to working with you!`,
+          price: proposalPrice,
+          deliveryDays: proposalDays,
+        });
+
+        // Update service request status
+        await storage.updateServiceRequest(sr.id, { status: "accepted" });
+
+        // Notify provider that client accepted their counter-offer
+        try {
+          await storage.createNotification(sr.providerId, {
+            type: "counter_accepted",
+            title: "Your counter-offer was accepted!",
+            message: `${req.user!.name} accepted your counter-offer for "${serviceName}". View the project to continue.`,
+            linkUrl: `/projects/${project.id}`,
+          });
+        } catch (nErr) {
+          console.warn("Failed to notify provider:", nErr);
+        }
+
+        res.json({ project, proposal, message: "Counter-offer accepted" });
+      } catch (error) {
+        console.error("Accept counter-offer error:", error);
+        res.status(500).json({ error: "Failed to accept counter-offer" });
       }
+    },
+  );
 
-      if (sr.providerId !== req.user!.id) {
-        res.status(403).json({ error: "Not authorized to counter this request" });
-        return;
+  // Client cancels their service request
+  app.post(
+    "/api/service-requests/:id/cancel",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        if (req.user!.role !== "client") {
+          res
+            .status(403)
+            .json({ error: "Only clients can cancel their requests" });
+          return;
+        }
+
+        const srList = await storage.getServiceRequests({});
+        const sr = srList.find((s) => s.id === req.params.id);
+        if (!sr) {
+          res.status(404).json({ error: "Service request not found" });
+          return;
+        }
+
+        if (sr.clientId !== req.user!.id) {
+          res
+            .status(403)
+            .json({ error: "Not authorized to cancel this request" });
+          return;
+        }
+
+        if (sr.status === "accepted") {
+          res
+            .status(400)
+            .json({ error: "Cannot cancel an already accepted request" });
+          return;
+        }
+
+        await storage.updateServiceRequest(sr.id, { status: "declined" });
+
+        // Notify provider that client cancelled the request
+        try {
+          const service = await storage.getService(sr.serviceId);
+          await storage.createNotification(sr.providerId, {
+            type: "request_cancelled",
+            title: "Service request cancelled",
+            message: `${req.user!.name} cancelled their request for "${service?.title || sr.serviceId}"`,
+            linkUrl: `/dashboard`,
+          });
+        } catch (nErr) {
+          console.warn("Failed to notify provider:", nErr);
+        }
+
+        res.json({ success: true, message: "Service request cancelled" });
+      } catch (error) {
+        console.error("Cancel service request error:", error);
+        res.status(500).json({ error: "Failed to cancel service request" });
       }
-
-      await storage.updateServiceRequest(sr.id, {
-        status: "countered",
-        counterPrice: counterPrice ?? null,
-        counterDeliveryDays: counterDeliveryDays ?? null,
-        counterMessage: counterMessage ?? null,
-      });
-
-      await storage.createNotification(sr.clientId, {
-        type: "request_countered",
-        title: "Your service request has a counter-offer",
-        message: `${req.user!.name} sent a counter-offer for your request`,
-        linkUrl: `/requests/${sr.id}`,
-      });
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Counter service request error:", error);
-      res.status(500).json({ error: "Failed to send counter-offer" });
-    }
-  });
+    },
+  );
 
   // Notifications endpoints
-  app.get("/api/notifications", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      const list = await storage.getNotifications(req.user!.id);
-      res.json(list);
-    } catch (error) {
-      console.error("Get notifications error:", error);
-      res.status(500).json({ error: "Failed to get notifications" });
-    }
-  });
+  app.get(
+    "/api/notifications",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const list = await storage.getNotifications(req.user!.id);
+        res.json(list);
+      } catch (error) {
+        console.error("Get notifications error:", error);
+        res.status(500).json({ error: "Failed to get notifications" });
+      }
+    },
+  );
 
-  app.post("/api/notifications/:id/read", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      await storage.markNotificationRead(req.params.id);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Mark notification read error:", error);
-      res.status(500).json({ error: "Failed to mark notification read" });
-    }
-  });
+  app.post(
+    "/api/notifications/:id/read",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        await storage.markNotificationRead(req.params.id);
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Mark notification read error:", error);
+        res.status(500).json({ error: "Failed to mark notification read" });
+      }
+    },
+  );
 
   // ==========================================================================
   // PROJECT ROUTES
   // ==========================================================================
 
   // Get projects
-  app.get("/api/projects", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      const filters: { clientId?: string; providerId?: string; status?: string } = {};
+  app.get(
+    "/api/projects",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const filters: {
+          clientId?: string;
+          providerId?: string;
+          status?: string;
+        } = {};
 
-      // If status is "open", show all open projects (for marketplace)
-      if (req.query.status === "open") {
-        filters.status = "open";
-      } else if (req.user!.role === "client") {
-        // Clients see their own projects
-        filters.clientId = req.user!.id;
-        if (req.query.status) filters.status = req.query.status as string;
-      } else if (req.user!.role === "student") {
-        // Students see projects they have proposals for
-        filters.providerId = req.user!.id;
-        if (req.query.status) filters.status = req.query.status as string;
+        // If status is "open", show all open projects (for marketplace)
+        if (req.query.status === "open") {
+          filters.status = "open";
+        } else if (req.user!.role === "client") {
+          // Clients see their own projects
+          filters.clientId = req.user!.id;
+          if (req.query.status) filters.status = req.query.status as string;
+        } else if (req.user!.role === "student") {
+          // Students see projects they have proposals for
+          filters.providerId = req.user!.id;
+          if (req.query.status) filters.status = req.query.status as string;
+        }
+
+        const projects = await storage.getProjects(filters);
+        res.json(projects);
+      } catch (error) {
+        console.error("Get projects error:", error);
+        res.status(500).json({ error: "Failed to get projects" });
       }
-
-      const projects = await storage.getProjects(filters);
-      res.json(projects);
-    } catch (error) {
-      console.error("Get projects error:", error);
-      res.status(500).json({ error: "Failed to get projects" });
-    }
-  });
+    },
+  );
 
   // Get single project
-  app.get("/api/projects/:id", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      const project = await storage.getProject(req.params.id);
-      if (!project) {
-        res.status(404).json({ error: "Project not found" });
-        return;
+  app.get(
+    "/api/projects/:id",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const project = await storage.getProject(req.params.id);
+        if (!project) {
+          res.status(404).json({ error: "Project not found" });
+          return;
+        }
+        res.json(project);
+      } catch (error) {
+        console.error("Get project error:", error);
+        res.status(500).json({ error: "Failed to get project" });
       }
-      res.json(project);
-    } catch (error) {
-      console.error("Get project error:", error);
-      res.status(500).json({ error: "Failed to get project" });
-    }
-  });
+    },
+  );
 
   // Create project
-  app.post("/api/projects", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      if (req.user!.role !== "client") {
-        res.status(403).json({ error: "Only clients can create projects" });
-        return;
-      }
+  app.post(
+    "/api/projects",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        if (req.user!.role !== "client") {
+          res.status(403).json({ error: "Only clients can create projects" });
+          return;
+        }
 
-      const parsed = insertProjectSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({ error: parsed.error.errors[0].message });
-        return;
-      }
+        const parsed = insertProjectSchema.safeParse(req.body);
+        if (!parsed.success) {
+          res.status(400).json({ error: parsed.error.errors[0].message });
+          return;
+        }
 
-      const project = await storage.createProject(req.user!.id, parsed.data);
-      res.status(201).json(project);
-    } catch (error) {
-      console.error("Create project error:", error);
-      res.status(500).json({ error: "Failed to create project" });
-    }
-  });
+        const project = await storage.createProject(req.user!.id, parsed.data);
+        res.status(201).json(project);
+      } catch (error) {
+        console.error("Create project error:", error);
+        res.status(500).json({ error: "Failed to create project" });
+      }
+    },
+  );
 
   // Update project
-  app.patch("/api/projects/:id", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      const project = await storage.getProject(req.params.id);
-      if (!project) {
-        res.status(404).json({ error: "Project not found" });
-        return;
-      }
-
-      // Check authorization
-      const isClient = project.clientId === req.user!.id;
-      const isAcceptedProvider =
-        project.acceptedProposal?.providerId === req.user!.id;
-
-      if (!isClient && !isAcceptedProvider) {
-        res.status(403).json({ error: "Not authorized to update this project" });
-        return;
-      }
-
-      const parsed = updateProjectSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({ error: parsed.error.errors[0].message });
-        return;
-      }
-
-      // Validate status transitions
-      if (parsed.data.status) {
-        const currentStatus = project.status;
-        const newStatus = parsed.data.status;
-
-        // Only provider can mark as delivered
-        if (newStatus === "delivered" && !isAcceptedProvider) {
-          res.status(403).json({ error: "Only the accepted provider can mark as delivered" });
+  app.patch(
+    "/api/projects/:id",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const project = await storage.getProject(req.params.id);
+        if (!project) {
+          res.status(404).json({ error: "Project not found" });
           return;
         }
 
-        // Only client can mark as completed (release funds)
-        if (newStatus === "completed" && !isClient) {
-          res.status(403).json({ error: "Only the client can complete the project" });
+        // Check authorization
+        const isClient = project.clientId === req.user!.id;
+        const isAcceptedProvider =
+          project.acceptedProposal?.providerId === req.user!.id;
+
+        if (!isClient && !isAcceptedProvider) {
+          res
+            .status(403)
+            .json({ error: "Not authorized to update this project" });
           return;
         }
-      }
 
-      const updated = await storage.updateProject(req.params.id, parsed.data);
-      res.json(updated);
-    } catch (error) {
-      console.error("Update project error:", error);
-      res.status(500).json({ error: "Failed to update project" });
-    }
-  });
+        const parsed = updateProjectSchema.safeParse(req.body);
+        if (!parsed.success) {
+          res.status(400).json({ error: parsed.error.errors[0].message });
+          return;
+        }
+
+        // Validate status transitions
+        if (parsed.data.status) {
+          const currentStatus = project.status;
+          const newStatus = parsed.data.status;
+
+          // Only provider can mark as delivered
+          if (newStatus === "delivered" && !isAcceptedProvider) {
+            res.status(403).json({
+              error: "Only the accepted provider can mark as delivered",
+            });
+            return;
+          }
+
+          // Only client can mark as completed (release funds)
+          if (newStatus === "completed" && !isClient) {
+            res
+              .status(403)
+              .json({ error: "Only the client can complete the project" });
+            return;
+          }
+        }
+
+        const updated = await storage.updateProject(req.params.id, parsed.data);
+        res.json(updated);
+      } catch (error) {
+        console.error("Update project error:", error);
+        res.status(500).json({ error: "Failed to update project" });
+      }
+    },
+  );
 
   // Accept proposal
   app.post(
@@ -871,7 +1201,9 @@ export function registerRoutes(app: Express): void {
         }
 
         if (project.clientId !== req.user!.id) {
-          res.status(403).json({ error: "Only the project owner can accept proposals" });
+          res
+            .status(403)
+            .json({ error: "Only the project owner can accept proposals" });
           return;
         }
 
@@ -899,7 +1231,7 @@ export function registerRoutes(app: Express): void {
         console.error("Accept proposal error:", error);
         res.status(500).json({ error: "Failed to accept proposal" });
       }
-    }
+    },
   );
 
   // Get project messages
@@ -916,11 +1248,26 @@ export function registerRoutes(app: Express): void {
 
         // Check user is participant
         const isClient = project.clientId === req.user!.id;
+        const isAcceptedProvider =
+          project.acceptedProposal?.providerId === req.user!.id;
         const hasProposal = project.proposals.some(
-          (p) => p.providerId === req.user!.id
+          (p) => p.providerId === req.user!.id,
         );
 
-        if (!isClient && !hasProposal) {
+        console.log("[Messages] Access check:", {
+          userId: req.user!.id,
+          userRole: req.user!.role,
+          projectId: project.id,
+          clientId: project.clientId,
+          isClient,
+          isAcceptedProvider,
+          hasProposal,
+          proposalCount: project.proposals.length,
+          proposalProviderIds: project.proposals.map((p) => p.providerId),
+        });
+
+        if (!isClient && !hasProposal && !isAcceptedProvider) {
+          console.log("[Messages] Access denied for user:", req.user!.id);
           res.status(403).json({ error: "Not authorized to view messages" });
           return;
         }
@@ -931,7 +1278,7 @@ export function registerRoutes(app: Express): void {
         console.error("Get messages error:", error);
         res.status(500).json({ error: "Failed to get messages" });
       }
-    }
+    },
   );
 
   // Send message
@@ -948,11 +1295,23 @@ export function registerRoutes(app: Express): void {
 
         // Check user is participant
         const isClient = project.clientId === req.user!.id;
+        const isAcceptedProvider =
+          project.acceptedProposal?.providerId === req.user!.id;
         const hasProposal = project.proposals.some(
-          (p) => p.providerId === req.user!.id
+          (p) => p.providerId === req.user!.id,
         );
 
-        if (!isClient && !hasProposal) {
+        console.log("[Send Message] Access check:", {
+          userId: req.user!.id,
+          userRole: req.user!.role,
+          projectId: project.id,
+          isClient,
+          isAcceptedProvider,
+          hasProposal,
+        });
+
+        if (!isClient && !hasProposal && !isAcceptedProvider) {
+          console.log("[Send Message] Access denied for user:", req.user!.id);
           res.status(403).json({ error: "Not authorized to send messages" });
           return;
         }
@@ -966,14 +1325,14 @@ export function registerRoutes(app: Express): void {
         const message = await storage.createMessage(
           req.params.id,
           req.user!.id,
-          parsed.data
+          parsed.data,
         );
         res.status(201).json(message);
       } catch (error) {
         console.error("Send message error:", error);
         res.status(500).json({ error: "Failed to send message" });
       }
-    }
+    },
   );
 
   // Submit review for project
@@ -994,10 +1353,13 @@ export function registerRoutes(app: Express): void {
         }
 
         const isClient = project.clientId === req.user!.id;
-        const isProvider = project.acceptedProposal?.providerId === req.user!.id;
+        const isProvider =
+          project.acceptedProposal?.providerId === req.user!.id;
 
         if (!isClient && !isProvider) {
-          res.status(403).json({ error: "Only project participants can review" });
+          res
+            .status(403)
+            .json({ error: "Only project participants can review" });
           return;
         }
 
@@ -1018,10 +1380,12 @@ export function registerRoutes(app: Express): void {
         // Check if already reviewed
         const existingReviews = await storage.getProjectReviews(req.params.id);
         const alreadyReviewed = existingReviews.some(
-          (r) => r.authorId === req.user!.id
+          (r) => r.authorId === req.user!.id,
         );
         if (alreadyReviewed) {
-          res.status(400).json({ error: "You have already reviewed this project" });
+          res
+            .status(400)
+            .json({ error: "You have already reviewed this project" });
           return;
         }
 
@@ -1035,7 +1399,7 @@ export function registerRoutes(app: Express): void {
           req.params.id,
           req.user!.id,
           targetUserId,
-          parsed.data
+          parsed.data,
         );
 
         res.status(201).json(review);
@@ -1043,102 +1407,116 @@ export function registerRoutes(app: Express): void {
         console.error("Create review error:", error);
         res.status(500).json({ error: "Failed to create review" });
       }
-    }
+    },
   );
 
   // Get project reviews
-  app.get(
-    "/api/projects/:id/reviews",
-    async (req: Request, res: Response) => {
-      try {
-        const reviews = await storage.getProjectReviews(req.params.id);
-        res.json(reviews);
-      } catch (error) {
-        console.error("Get project reviews error:", error);
-        res.status(500).json({ error: "Failed to get reviews" });
-      }
+  app.get("/api/projects/:id/reviews", async (req: Request, res: Response) => {
+    try {
+      const reviews = await storage.getProjectReviews(req.params.id);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Get project reviews error:", error);
+      res.status(500).json({ error: "Failed to get reviews" });
     }
-  );
+  });
 
   // ==========================================================================
   // PROPOSAL ROUTES
   // ==========================================================================
 
   // Get proposals
-  app.get("/api/proposals", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      const filters = {
-        projectId: req.query.projectId as string | undefined,
-        providerId: req.query.providerId as string | undefined,
-      };
+  app.get(
+    "/api/proposals",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const filters = {
+          projectId: req.query.projectId as string | undefined,
+          providerId: req.query.providerId as string | undefined,
+        };
 
-      const proposals = await storage.getProposals(filters);
-      res.json(proposals);
-    } catch (error) {
-      console.error("Get proposals error:", error);
-      res.status(500).json({ error: "Failed to get proposals" });
-    }
-  });
+        const proposals = await storage.getProposals(filters);
+        res.json(proposals);
+      } catch (error) {
+        console.error("Get proposals error:", error);
+        res.status(500).json({ error: "Failed to get proposals" });
+      }
+    },
+  );
 
   // Get single proposal
-  app.get("/api/proposals/:id", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      const proposal = await storage.getProposal(req.params.id);
-      if (!proposal) {
-        res.status(404).json({ error: "Proposal not found" });
-        return;
+  app.get(
+    "/api/proposals/:id",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const proposal = await storage.getProposal(req.params.id);
+        if (!proposal) {
+          res.status(404).json({ error: "Proposal not found" });
+          return;
+        }
+        res.json(proposal);
+      } catch (error) {
+        console.error("Get proposal error:", error);
+        res.status(500).json({ error: "Failed to get proposal" });
       }
-      res.json(proposal);
-    } catch (error) {
-      console.error("Get proposal error:", error);
-      res.status(500).json({ error: "Failed to get proposal" });
-    }
-  });
+    },
+  );
 
   // Create proposal
-  app.post("/api/proposals", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      if (req.user!.role !== "student") {
-        res.status(403).json({ error: "Only students can submit proposals" });
-        return;
+  app.post(
+    "/api/proposals",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        if (req.user!.role !== "student") {
+          res.status(403).json({ error: "Only students can submit proposals" });
+          return;
+        }
+
+        const parsed = insertProposalSchema.safeParse(req.body);
+        if (!parsed.success) {
+          res.status(400).json({ error: parsed.error.errors[0].message });
+          return;
+        }
+
+        // Check project exists and is open
+        const project = await storage.getProject(parsed.data.projectId);
+        if (!project) {
+          res.status(404).json({ error: "Project not found" });
+          return;
+        }
+
+        if (project.status !== "open") {
+          res.status(400).json({ error: "Project is not accepting proposals" });
+          return;
+        }
+
+        // Check if already submitted proposal
+        const existingProposals = await storage.getProposals({
+          projectId: parsed.data.projectId,
+          providerId: req.user!.id,
+        });
+
+        if (existingProposals.length > 0) {
+          res
+            .status(400)
+            .json({ error: "You have already submitted a proposal" });
+          return;
+        }
+
+        const proposal = await storage.createProposal(
+          req.user!.id,
+          parsed.data,
+        );
+        res.status(201).json(proposal);
+      } catch (error) {
+        console.error("Create proposal error:", error);
+        res.status(500).json({ error: "Failed to create proposal" });
       }
-
-      const parsed = insertProposalSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({ error: parsed.error.errors[0].message });
-        return;
-      }
-
-      // Check project exists and is open
-      const project = await storage.getProject(parsed.data.projectId);
-      if (!project) {
-        res.status(404).json({ error: "Project not found" });
-        return;
-      }
-
-      if (project.status !== "open") {
-        res.status(400).json({ error: "Project is not accepting proposals" });
-        return;
-      }
-
-      // Check if already submitted proposal
-      const existingProposals = await storage.getProposals({
-        projectId: parsed.data.projectId,
-        providerId: req.user!.id,
-      });
-
-      if (existingProposals.length > 0) {
-        res.status(400).json({ error: "You have already submitted a proposal" });
-        return;
-      }
-
-      const proposal = await storage.createProposal(req.user!.id, parsed.data);
-      res.status(201).json(proposal);
-    } catch (error) {
-      console.error("Create proposal error:", error);
-      res.status(500).json({ error: "Failed to create proposal" });
-    }
-  });
+    },
+  );
 
   // Update proposal
   app.patch(
@@ -1153,14 +1531,18 @@ export function registerRoutes(app: Express): void {
         }
 
         if (proposal.providerId !== req.user!.id) {
-          res.status(403).json({ error: "You can only edit your own proposals" });
+          res
+            .status(403)
+            .json({ error: "You can only edit your own proposals" });
           return;
         }
 
         // Check project is still open
         const project = await storage.getProject(proposal.projectId);
         if (!project || project.status !== "open") {
-          res.status(400).json({ error: "Cannot edit proposal for non-open project" });
+          res
+            .status(400)
+            .json({ error: "Cannot edit proposal for non-open project" });
           return;
         }
 
@@ -1170,13 +1552,16 @@ export function registerRoutes(app: Express): void {
           return;
         }
 
-        const updated = await storage.updateProposal(req.params.id, parsed.data);
+        const updated = await storage.updateProposal(
+          req.params.id,
+          parsed.data,
+        );
         res.json(updated);
       } catch (error) {
         console.error("Update proposal error:", error);
         res.status(500).json({ error: "Failed to update proposal" });
       }
-    }
+    },
   );
 
   // Delete proposal
@@ -1192,14 +1577,18 @@ export function registerRoutes(app: Express): void {
         }
 
         if (proposal.providerId !== req.user!.id) {
-          res.status(403).json({ error: "You can only delete your own proposals" });
+          res
+            .status(403)
+            .json({ error: "You can only delete your own proposals" });
           return;
         }
 
         // Check project is still open
         const project = await storage.getProject(proposal.projectId);
         if (!project || project.status !== "open") {
-          res.status(400).json({ error: "Cannot delete proposal for non-open project" });
+          res
+            .status(400)
+            .json({ error: "Cannot delete proposal for non-open project" });
           return;
         }
 
@@ -1209,7 +1598,7 @@ export function registerRoutes(app: Express): void {
         console.error("Delete proposal error:", error);
         res.status(500).json({ error: "Failed to delete proposal" });
       }
-    }
+    },
   );
 
   // ==========================================================================
@@ -1235,12 +1624,16 @@ export function registerRoutes(app: Express): void {
         }
 
         if (project.clientId !== req.user!.id) {
-          res.status(403).json({ error: "Only the client can release payment" });
+          res
+            .status(403)
+            .json({ error: "Only the client can release payment" });
           return;
         }
 
         if (project.status !== "delivered") {
-          res.status(400).json({ error: "Project must be delivered before releasing payment" });
+          res.status(400).json({
+            error: "Project must be delivered before releasing payment",
+          });
           return;
         }
 
@@ -1251,7 +1644,7 @@ export function registerRoutes(app: Express): void {
 
         const transaction = await storage.releasePayment(
           projectId,
-          project.acceptedProposal.providerId
+          project.acceptedProposal.providerId,
         );
 
         if (!transaction) {
@@ -1264,7 +1657,7 @@ export function registerRoutes(app: Express): void {
         console.error("Release payment error:", error);
         res.status(500).json({ error: "Failed to release payment" });
       }
-    }
+    },
   );
 
   // Get transactions
@@ -1284,7 +1677,7 @@ export function registerRoutes(app: Express): void {
         console.error("Get transactions error:", error);
         res.status(500).json({ error: "Failed to get transactions" });
       }
-    }
+    },
   );
 
   // ==========================================================================
@@ -1292,41 +1685,50 @@ export function registerRoutes(app: Express): void {
   // ==========================================================================
 
   // Create dispute
-  app.post("/api/disputes", authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-      const parsed = insertDisputeSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({ error: parsed.error.errors[0].message });
-        return;
+  app.post(
+    "/api/disputes",
+    authMiddleware,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const parsed = insertDisputeSchema.safeParse(req.body);
+        if (!parsed.success) {
+          res.status(400).json({ error: parsed.error.errors[0].message });
+          return;
+        }
+
+        // Verify user is participant in project
+        const project = await storage.getProject(parsed.data.projectId);
+        if (!project) {
+          res.status(404).json({ error: "Project not found" });
+          return;
+        }
+
+        const isClient = project.clientId === req.user!.id;
+        const isProvider =
+          project.acceptedProposal?.providerId === req.user!.id;
+
+        if (!isClient && !isProvider) {
+          res
+            .status(403)
+            .json({ error: "Only project participants can open disputes" });
+          return;
+        }
+
+        if (project.status === "completed" || project.status === "cancelled") {
+          res
+            .status(400)
+            .json({ error: "Cannot dispute completed or cancelled projects" });
+          return;
+        }
+
+        const dispute = await storage.createDispute(req.user!.id, parsed.data);
+        res.status(201).json(dispute);
+      } catch (error) {
+        console.error("Create dispute error:", error);
+        res.status(500).json({ error: "Failed to create dispute" });
       }
-
-      // Verify user is participant in project
-      const project = await storage.getProject(parsed.data.projectId);
-      if (!project) {
-        res.status(404).json({ error: "Project not found" });
-        return;
-      }
-
-      const isClient = project.clientId === req.user!.id;
-      const isProvider = project.acceptedProposal?.providerId === req.user!.id;
-
-      if (!isClient && !isProvider) {
-        res.status(403).json({ error: "Only project participants can open disputes" });
-        return;
-      }
-
-      if (project.status === "completed" || project.status === "cancelled") {
-        res.status(400).json({ error: "Cannot dispute completed or cancelled projects" });
-        return;
-      }
-
-      const dispute = await storage.createDispute(req.user!.id, parsed.data);
-      res.status(201).json(dispute);
-    } catch (error) {
-      console.error("Create dispute error:", error);
-      res.status(500).json({ error: "Failed to create dispute" });
-    }
-  });
+    },
+  );
 
   // Get disputes (admin only)
   app.get(
@@ -1345,7 +1747,7 @@ export function registerRoutes(app: Express): void {
         console.error("Get disputes error:", error);
         res.status(500).json({ error: "Failed to get disputes" });
       }
-    }
+    },
   );
 
   // Get single dispute
@@ -1365,10 +1767,13 @@ export function registerRoutes(app: Express): void {
         const isAdmin = req.user!.role === "admin";
         const isOpener = dispute.openerId === req.user!.id;
         const isClient = project?.clientId === req.user!.id;
-        const isProvider = project?.acceptedProposal?.providerId === req.user!.id;
+        const isProvider =
+          project?.acceptedProposal?.providerId === req.user!.id;
 
         if (!isAdmin && !isOpener && !isClient && !isProvider) {
-          res.status(403).json({ error: "Not authorized to view this dispute" });
+          res
+            .status(403)
+            .json({ error: "Not authorized to view this dispute" });
           return;
         }
 
@@ -1377,7 +1782,7 @@ export function registerRoutes(app: Express): void {
         console.error("Get dispute error:", error);
         res.status(500).json({ error: "Failed to get dispute" });
       }
-    }
+    },
   );
 
   // Update dispute (admin only)
@@ -1404,7 +1809,7 @@ export function registerRoutes(app: Express): void {
         console.error("Update dispute error:", error);
         res.status(500).json({ error: "Failed to update dispute" });
       }
-    }
+    },
   );
 
   // ==========================================================================
@@ -1455,10 +1860,10 @@ export function registerRoutes(app: Express): void {
   app.get("/api/health/db", async (_req: Request, res: Response) => {
     try {
       const isTurso = process.env.DATABASE_URL?.startsWith("libsql://");
-      
+
       // Run a simple query to verify connection
       const result = await storage.getUser("health-check-test");
-      
+
       res.json({
         status: "ok",
         database: isTurso ? "turso" : "local-sqlite",
@@ -1472,7 +1877,9 @@ export function registerRoutes(app: Express): void {
       console.error("Database health check failed:", error);
       res.status(503).json({
         status: "error",
-        database: process.env.DATABASE_URL?.startsWith("libsql://") ? "turso" : "local-sqlite",
+        database: process.env.DATABASE_URL?.startsWith("libsql://")
+          ? "turso"
+          : "local-sqlite",
         error: error instanceof Error ? error.message : "Unknown error",
         timestamp: new Date().toISOString(),
         env: {

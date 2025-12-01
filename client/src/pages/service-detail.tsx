@@ -47,10 +47,16 @@ import {
   getInitials,
 } from "@/lib/utils";
 import { api } from "@/lib/queryClient";
-import type { SafeUser, ServiceWithProvider, ReviewWithAuthor, ProjectWithDetails, Proposal } from "@shared/schema";
+import type {
+  SafeUser,
+  ServiceWithProvider,
+  ReviewWithAuthor,
+  ProjectWithDetails,
+  Proposal,
+} from "@shared/schema";
 
 // Platform fee percentage (must match server-side constant)
-const PLATFORM_FEE_PERCENTAGE = 0.10;
+const PLATFORM_FEE_PERCENTAGE = 0.1;
 
 interface ServiceDetailProps {
   serviceId: string;
@@ -60,7 +66,12 @@ interface ServiceDetailProps {
 type PricingTier = "basic" | "standard" | "premium";
 
 const requestServiceSchema = z.object({
-  requirements: z.string().min(20, "Please provide more detail about your requirements (at least 20 characters)"),
+  requirements: z
+    .string()
+    .min(
+      20,
+      "Please provide more detail about your requirements (at least 20 characters)",
+    ),
   customBudget: z.string().optional(),
 });
 
@@ -72,7 +83,11 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTier, setSelectedTier] = useState<PricingTier>("basic");
 
-  const { data: service, isLoading, error } = useQuery<ServiceWithProvider>({
+  const {
+    data: service,
+    isLoading,
+    error,
+  } = useQuery<ServiceWithProvider>({
     queryKey: [`/api/services/${serviceId}`],
   });
 
@@ -91,29 +106,33 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
 
   const requestMutation = useMutation({
     mutationFn: async (data: RequestServiceForm) => {
-      const payload: { tier: PricingTier; requirements: string; customBudget?: number } = {
+      const payload: {
+        tier: PricingTier;
+        requirements: string;
+        customBudget?: number;
+      } = {
         tier: selectedTier,
         requirements: data.requirements,
       };
       if (data.customBudget && parseFloat(data.customBudget) > 0) {
         payload.customBudget = parseFloat(data.customBudget);
       }
-      return api.post<{ project: ProjectWithDetails; proposal: Proposal; message: string }>(
+      return api.post<{ serviceRequest: any; message: string }>(
         `/api/services/${serviceId}/request`,
-        payload
+        payload,
       );
     },
-    onSuccess: (data) => {
-      const projectId = data.project.id;
+    onSuccess: () => {
       setIsModalOpen(false);
       form.reset();
       toast({
         title: "Service Requested!",
-        description: "Your request has been sent to the freelancer. They'll respond shortly.",
+        description:
+          "Your request has been sent to the freelancer. They'll review and respond shortly.",
         variant: "success",
       });
-      // Navigate after state updates
-      setTimeout(() => navigate(`/projects/${projectId}`), 100);
+      // Navigate to dashboard to see pending requests
+      setTimeout(() => navigate("/dashboard"), 100);
     },
     onError: (error: any) => {
       toast({
@@ -261,13 +280,16 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
                 </div>
                 {profile && (
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    {profile.rating && parseFloat(String(profile.rating)) > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        {parseFloat(String(profile.rating)).toFixed(1)}
-                        <span className="text-xs">({profile.reviewCount} reviews)</span>
-                      </span>
-                    )}
+                    {profile.rating &&
+                      parseFloat(String(profile.rating)) > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          {parseFloat(String(profile.rating)).toFixed(1)}
+                          <span className="text-xs">
+                            ({profile.reviewCount} reviews)
+                          </span>
+                        </span>
+                      )}
                     {profile.availability && (
                       <Badge className={getStatusColor(profile.availability)}>
                         {getStatusLabel(profile.availability)}
@@ -317,7 +339,8 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
               <div>
                 <p className="font-medium">Delivery Time</p>
                 <p className="text-sm text-muted-foreground">
-                  Starting from {service.deliveryDays} day{service.deliveryDays !== 1 ? "s" : ""}
+                  Starting from {service.deliveryDays} day
+                  {service.deliveryDays !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
@@ -339,7 +362,9 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
                         </Avatar>
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
-                            <span className="font-medium">{review.author.name}</span>
+                            <span className="font-medium">
+                              {review.author.name}
+                            </span>
                             <span className="text-sm text-muted-foreground">
                               {formatDate(review.createdAt)}
                             </span>
@@ -377,15 +402,24 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
           <Card className="sticky top-24">
             <CardHeader>
               <CardTitle>Pricing</CardTitle>
-              <CardDescription>Choose a package that fits your needs</CardDescription>
+              <CardDescription>
+                Choose a package that fits your needs
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="basic" className="w-full" onValueChange={(v) => setSelectedTier(v as PricingTier)}>
+              <Tabs
+                defaultValue="basic"
+                className="w-full"
+                onValueChange={(v) => setSelectedTier(v as PricingTier)}
+              >
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="basic" disabled={!service.priceBasic}>
                     Basic
                   </TabsTrigger>
-                  <TabsTrigger value="standard" disabled={!service.priceStandard}>
+                  <TabsTrigger
+                    value="standard"
+                    disabled={!service.priceStandard}
+                  >
                     Standard
                   </TabsTrigger>
                   <TabsTrigger value="premium" disabled={!service.pricePremium}>
@@ -422,7 +456,10 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-4 w-4" />
-                        {service.deliveryDays ? Math.ceil(service.deliveryDays * 1.5) : "TBD"} days delivery
+                        {service.deliveryDays
+                          ? Math.ceil(service.deliveryDays * 1.5)
+                          : "TBD"}{" "}
+                        days delivery
                       </div>
                       {service.descriptionStandard && (
                         <p className="text-sm text-muted-foreground pt-2 border-t">
@@ -443,7 +480,10 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-4 w-4" />
-                        {service.deliveryDays ? service.deliveryDays * 2 : "TBD"} days delivery
+                        {service.deliveryDays
+                          ? service.deliveryDays * 2
+                          : "TBD"}{" "}
+                        days delivery
                       </div>
                       {service.descriptionPremium && (
                         <p className="text-sm text-muted-foreground pt-2 border-t">
@@ -461,8 +501,8 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
 
               {user ? (
                 user.role === "client" ? (
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     onClick={() => openRequestModal(selectedTier)}
                     disabled={!getTierPrice(selectedTier)}
                   >
@@ -480,9 +520,7 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
                 )
               ) : (
                 <Button className="w-full" asChild>
-                  <Link href="/register">
-                    Sign up to hire
-                  </Link>
+                  <Link href="/register">Sign up to hire</Link>
                 </Button>
               )}
             </CardContent>
@@ -527,7 +565,8 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
                     <span className="text-muted-foreground">Rating</span>
                     <span className="flex items-center gap-1 font-medium">
                       <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      {parseFloat(String(profile.rating)).toFixed(1)} ({profile.reviewCount})
+                      {parseFloat(String(profile.rating)).toFixed(1)} (
+                      {profile.reviewCount})
                     </span>
                   </div>
                 )}
@@ -535,14 +574,18 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
                 {profile?.rate && (
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Hourly Rate</span>
-                    <span className="font-medium">{formatCurrency(profile.rate)}/hr</span>
+                    <span className="font-medium">
+                      {formatCurrency(profile.rate)}/hr
+                    </span>
                   </div>
                 )}
 
                 {profile?.languages && profile.languages.length > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Languages</span>
-                    <span className="font-medium">{profile.languages.join(", ")}</span>
+                    <span className="font-medium">
+                      {profile.languages.join(", ")}
+                    </span>
                   </div>
                 )}
 
@@ -564,7 +607,11 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
                     <p className="text-sm font-medium mb-2">Skills</p>
                     <div className="flex flex-wrap gap-2">
                       {profile.skills.slice(0, 6).map((skill, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
+                        <Badge
+                          key={index}
+                          variant="secondary"
+                          className="text-xs"
+                        >
                           {skill.name}
                         </Badge>
                       ))}
@@ -595,7 +642,9 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
             <div className="p-4 rounded-lg bg-muted">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium">{service.title}</span>
-                <Badge>{selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)}</Badge>
+                <Badge>
+                  {selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)}
+                </Badge>
               </div>
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
@@ -629,22 +678,26 @@ export default function ServiceDetail({ serviceId, user }: ServiceDetailProps) {
             {/* Custom Budget (Optional) */}
             <div className="space-y-2">
               <Label htmlFor="customBudget">
-                Custom Budget <span className="text-muted-foreground">(optional)</span>
+                Custom Budget{" "}
+                <span className="text-muted-foreground">(optional)</span>
               </Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  ₦
+                </span>
                 <Input
                   id="customBudget"
                   type="number"
                   min="0"
-                  step="0.01"
+                  step="1"
                   placeholder={selectedPrice ? selectedPrice.toString() : "0"}
                   className="pl-7"
                   {...form.register("customBudget")}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Leave empty to use the listed price. Suggest a different amount if you have specific needs.
+                Leave empty to use the listed price. Suggest a different amount
+                if you have specific needs.
               </p>
             </div>
 

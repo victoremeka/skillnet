@@ -250,15 +250,15 @@ export default function PostProject({ user }: PostProjectProps) {
                     name="budgetMin"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Minimum Budget ($)</FormLabel>
+                        <FormLabel>Minimum Budget (₦)</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                              $
+                              ₦
                             </span>
                             <Input
                               type="number"
-                              placeholder="100"
+                              placeholder="150000"
                               className="pl-7"
                               min={0}
                               {...field}
@@ -275,15 +275,15 @@ export default function PostProject({ user }: PostProjectProps) {
                     name="budgetMax"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Maximum Budget ($)</FormLabel>
+                        <FormLabel>Maximum Budget (₦)</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                              $
+                              ₦
                             </span>
                             <Input
                               type="number"
-                              placeholder="500"
+                              placeholder="300000"
                               className="pl-7"
                               min={0}
                               {...field}

@@ -1,7 +1,7 @@
-import express from "express";
+import express, { Express } from "express";
 import { registerRoutes } from "./routes";
 
-const app = express();
+const app: Express = express();
 
 // Body parsing middleware
 app.use(express.json());
