@@ -356,8 +356,8 @@ const mockProjects = [
     title: "Recipe Sharing Website",
     description:
       "Need a full-stack web app where users can share and discover recipes. Features: user accounts, recipe upload with photos, search/filter, favorites, and comments.",
-    budgetMin: 1200,
-    budgetMax: 2000,
+    budgetMin: 120000,
+    budgetMax: 200000,
     status: "in_progress" as const,
     daysAgo: 14,
   },
@@ -366,8 +366,8 @@ const mockProjects = [
     title: "App Store Screenshots & Graphics",
     description:
       "Need professional app store screenshots and promotional graphics for our fitness app on both iOS and Android stores.",
-    budgetMin: 250,
-    budgetMax: 500,
+    budgetMin: 25000,
+    budgetMax: 50000,
     status: "completed" as const,
     daysAgo: 30,
   },

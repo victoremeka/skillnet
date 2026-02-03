@@ -289,10 +289,10 @@ export function registerRoutes(app: Express): void {
     authMiddleware,
     async (req: AuthRequest, res: Response) => {
       try {
-        if (req.user!.role !== "student") {
+        if (req.user!.role !== "student" && req.user!.role !== "client") {
           res
             .status(403)
-            .json({ error: "Only students have profiles to update" });
+            .json({ error: "Only students and clients have profiles to update" });
           return;
         }
 

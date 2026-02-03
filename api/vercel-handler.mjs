@@ -455,7 +455,7 @@ async function createUser(data) {
     verificationCode,
     phone: data.phone || null
   }).returning();
-  if (data.role === "student") {
+  if (data.role === "student" || data.role === "client") {
     await db.insert(profiles).values({
       id: uuidv4(),
       userId: id
@@ -1164,8 +1164,8 @@ function registerRoutes(app2) {
     authMiddleware,
     async (req, res) => {
       try {
-        if (req.user.role !== "student") {
-          res.status(403).json({ error: "Only students have profiles to update" });
+        if (req.user.role !== "student" && req.user.role !== "client") {
+          res.status(403).json({ error: "Only students and clients have profiles to update" });
           return;
         }
         const parsed = updateProfileSchema.safeParse(req.body);

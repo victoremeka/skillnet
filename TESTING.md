@@ -2,6 +2,8 @@
 
 This document provides comprehensive testing credentials and scenarios for the SkillNet platform.
 
+**Currency:** All prices are in Nigerian Naira (₦)
+
 ## Test Accounts
 
 All accounts use the password: **`password123`**
@@ -10,11 +12,11 @@ All accounts use the password: **`password123`**
 
 | Name | Email | Specialization | Rate |
 |------|-------|----------------|------|
-| Alex Chen | `alex@student.edu` | Full-Stack Development | $45/hr |
-| Sarah Johnson | `sarah@student.edu` | UI/UX Design | $40/hr |
-| Marcus Williams | `marcus@student.edu` | Mobile Development | $50/hr |
-| Emily Park | `emily@student.edu` | Data Science & ML | $55/hr |
-| Jordan Rivera | `jordan@student.edu` | Content Writing | $30/hr |
+| Alex Chen | `alex@student.edu` | Full-Stack Development | ₦45,000/hr |
+| Sarah Johnson | `sarah@student.edu` | UI/UX Design | ₦40,000/hr |
+| Marcus Williams | `marcus@student.edu` | Mobile Development | ₦50,000/hr |
+| Emily Park | `emily@student.edu` | Data Science & ML | ₦55,000/hr |
+| Jordan Rivera | `jordan@student.edu` | Content Writing | ₦30,000/hr |
 
 **Note:** All students have verified university emails and can offer services.
 
@@ -55,10 +57,17 @@ All accounts use the password: **`password123`**
 
 **Example Services to Test:**
 - "Full-Stack Web Application Development" (Alex Chen)
+  - Basic: ₦80,000 | Standard: ₦150,000 | Premium: ₦300,000
 - "Complete UI/UX Design Package" (Sarah Johnson)
+  - Basic: ₦60,000 | Standard: ₦120,000 | Premium: ₦250,000
+- "Website Redesign" (Sarah Johnson)
+  - Basic: ₦55,000 | Standard: ₦110,000 | Premium: ₦200,000
 - "Cross-Platform Mobile App" (Marcus Williams)
+  - Basic: ₦120,000 | Standard: ₦250,000 | Premium: ₦500,000
 - "Machine Learning Model Development" (Emily Park)
+  - Basic: ₦100,000 | Standard: ₦200,000 | Premium: ₦400,000
 - "SEO Blog Content Writing" (Jordan Rivera)
+  - Basic: ₦15,000 | Standard: ₦40,000 | Premium: ₦80,000
 
 ### 2. Request a Service (Payment Flow)
 
@@ -82,9 +91,9 @@ All accounts use the password: **`password123`**
 1. Login as a client who has accepted a proposal
 2. View any project with escrow amount
 3. In the Payment sidebar card, verify:
-   - Total Escrow: $XXX
-   - Platform Fee (10%): -$XX
-   - **Provider Receives: $XXX (90% of total)**
+   - Total Escrow: ₦XXX
+   - Platform Fee (10%): -₦XX
+   - **Provider Receives: ₦XXX (90% of total)**
 
 **Test Release Payment:**
 1. Login as client `dev@fitlifeapp.com`
@@ -118,8 +127,8 @@ All accounts use the password: **`password123`**
 1. View project detail page
 2. Yellow alert shows: "Work has been delivered!"
 3. Alert displays:
-   - Provider will receive: $XXX (net after 10% fee)
-   - Platform fee (10%): $XX
+   - Provider will receive: ₦XXX (net after 10% fee)
+   - Platform fee (10%): ₦XX
 4. Click "Approve & Release Payment"
 5. Confirm payment release
 
@@ -197,9 +206,9 @@ All accounts use the password: **`password123`**
 
 | Escrow Amount | Platform Fee (10%) | Provider Receives (90%) |
 |---------------|-------------------|------------------------|
-| $500 | $50 | $450 |
-| $1,000 | $100 | $900 |
-| $2,000 | $200 | $1,800 |
+| ₦500,000 | ₦50,000 | ₦450,000 |
+| ₦1,000,000 | ₦100,000 | ₦900,000 |
+| ₦2,000,000 | ₦200,000 | ₦1,800,000 |
 
 ### Transaction Flow
 
@@ -230,14 +239,14 @@ All accounts use the password: **`password123`**
 
 1. **Client** (`david.m@gmail.com`) browses marketplace
 2. Finds "Website Redesign" by Sarah Johnson
-3. Reviews tier descriptions, selects **Standard** ($700)
+3. Reviews tier descriptions, selects **Standard** (₦110,000)
 4. Requests service with project requirements
 5. **Student** (Sarah) receives auto-proposal
 6. **Client** reviews and accepts proposal
-7. Escrow shows: $700 total, $70 fee, **Sarah receives $630**
+7. Escrow shows: ₦110,000 total, ₦11,000 fee, **Sarah receives ₦99,000**
 8. Sarah delivers work, marks project as "delivered"
 9. David reviews work and clicks "Approve & Release Payment"
-10. System creates release transaction: $630 to Sarah, $70 platform fee
+10. System creates release transaction: ₦99,000 to Sarah, ₦11,000 platform fee
 11. Both submit reviews
 12. Sarah's rating updates on her profile
 
@@ -330,14 +339,25 @@ LIMIT 3;
 - **Project**: "App Store Screenshots & Graphics"
 - **Client**: FitLife App (`dev@fitlifeapp.com`)
 - **Provider**: Sarah Johnson (`sarah@student.edu`)
+- **Budget**: ₦25,000 - ₦50,000
 - **Status**: Completed
 - **Reviews**: Mutual 5-star reviews exist
 
 ### Open Projects with Proposals
-1. "E-commerce Platform MVP" - 1 proposal from Alex Chen
-2. "Personal Portfolio Website" - 2 proposals (Alex & Sarah)
-3. "Fitness App Data Dashboard" - 2 proposals (Emily & Alex)
-4. "Landing Page for Product Launch" - 2 proposals (Alex & Sarah)
+1. **"E-commerce Platform MVP"** - Budget: ₦250,000 - ₦500,000
+   - 1 proposal from Alex Chen
+2. **"Personal Portfolio Website"** - Budget: ₦65,000 - ₦130,000
+   - 2 proposals (Alex & Sarah)
+3. **"Fitness App Data Dashboard"** - Budget: ₦100,000 - ₦200,000
+   - 2 proposals (Emily & Alex)
+4. **"Landing Page for Product Launch"** - Budget: ₦50,000 - ₦100,000
+   - 2 proposals (Alex & Sarah)
+
+### In-Progress Projects
+1. **"Recipe Sharing Website"** - Budget: ₦120,000 - ₦200,000
+   - Client: David Mitchell
+   - Provider: Alex Chen
+   - Status: In Progress
 
 ---
 

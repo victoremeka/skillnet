@@ -79,8 +79,8 @@ export async function createUser(data: {
     })
     .returning();
 
-  // Create profile for students
-  if (data.role === "student") {
+  // Create profile for students and clients (both can receive reviews)
+  if (data.role === "student" || data.role === "client") {
     await db.insert(profiles).values({
       id: uuidv4(),
       userId: id,

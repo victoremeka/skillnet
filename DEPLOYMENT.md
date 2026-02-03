@@ -246,17 +246,17 @@ npm run build
 
 Before going live:
 
-- [ ] Set up persistent database (Turso recommended)
-- [ ] Configure custom domain
-- [ ] Set JWT_SECRET environment variable
-- [ ] Enable HTTPS (automatic on Vercel)
-- [ ] Test all payment flows
-- [ ] Verify tier descriptions display correctly
-- [ ] Test platform fee calculations
-- [ ] Set up monitoring/logging
-- [ ] Configure rate limiting for API endpoints
-- [ ] Add Vercel Analytics
-- [ ] Set up error tracking (Sentry, etc.)
+- [x] Set up persistent database (Turso recommended)
+- [x] Configure custom domain
+- [x] Set JWT_SECRET environment variable
+- [x] Enable HTTPS (automatic on Vercel)
+- [x] Test all payment flows
+- [x] Verify tier descriptions display correctly
+- [x] Test platform fee calculations
+- [x] Set up monitoring/logging
+- [x] Configure rate limiting for API endpoints
+- [x] Add Vercel Analytics
+- [x] Set up error tracking (Sentry, etc.)
 
 ## Useful Commands
 
