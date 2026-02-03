@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import {
   users,
   profiles,
@@ -651,6 +651,68 @@ async function seed() {
     createdAt: daysAgo(24),
   });
   console.log("   ✓ Review from Sarah Johnson → FitLife App");
+
+  // --------------------------------------------------------------------------
+  // Recalculate ratings based on actual reviews
+  // --------------------------------------------------------------------------
+  console.log("\n🔄 Updating user ratings...");
+  
+  // Update Sarah's rating (she received 1 review)
+  const sarahReviews = await db
+    .select()
+    .from(reviews)
+    .where(eq(reviews.targetUserId, studentIds[1]));
+  
+  if (sarahReviews.length > 0) {
+    const totalRating = sarahReviews.reduce((sum, r) => sum + r.rating, 0);
+    const averageRating = totalRating / sarahReviews.length;
+    
+    await db
+      .update(profiles)
+      .set({
+        rating: averageRating,
+        reviewCount: sarahReviews.length,
+      })
+      .where(eq(profiles.userId, studentIds[1]));
+    
+    console.log(`   ✓ Sarah Johnson: ${averageRating.toFixed(1)} (${sarahReviews.length} review)`);
+  }
+
+  // Update FitLife App's rating (client received 1 review)
+  const fitlifeReviews = await db
+    .select()
+    .from(reviews)
+    .where(eq(reviews.targetUserId, clientIds[4]));
+  
+  if (fitlifeReviews.length > 0) {
+    const totalRating = fitlifeReviews.reduce((sum, r) => sum + r.rating, 0);
+    const averageRating = totalRating / fitlifeReviews.length;
+    
+    // Create profile for client if it doesn't exist
+    const existingProfile = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, clientIds[4]));
+    
+    if (existingProfile.length === 0) {
+      await db.insert(profiles).values({
+        id: uuidv4(),
+        userId: clientIds[4],
+        rating: averageRating,
+        reviewCount: fitlifeReviews.length,
+      });
+    } else {
+      await db
+        .update(profiles)
+        .set({
+          rating: averageRating,
+          reviewCount: fitlifeReviews.length,
+        })
+        .where(eq(profiles.userId, clientIds[4]));
+    }
+    
+    console.log(`   ✓ FitLife App: ${averageRating.toFixed(1)} (${fitlifeReviews.length} review)`);
+  }
 
   // --------------------------------------------------------------------------
   // Summary
