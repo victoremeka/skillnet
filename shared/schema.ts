@@ -51,13 +51,12 @@ export const profiles = sqliteTable("profiles", {
     .references(() => users.id, { onDelete: "cascade" }),
   bio: text("bio"),
   introVideoUrl: text("intro_video_url"),
-  skills: text("skills", { mode: "json" }).$type<Array<{ name: string; level: string }>>().default([]),
+  skills: text("skills", { mode: "json" }).$type<Array<{ name: string; level: string }>>(),
   portfolio: text("portfolio", { mode: "json" })
-    .$type<Array<{ title: string; description: string; url: string }>>()
-    .default([]),
+    .$type<Array<{ title: string; description: string; url: string }>>(),
   rate: real("rate"),
   availability: text("availability", { enum: ["available", "busy"] }).default("available"),
-  languages: text("languages", { mode: "json" }).$type<string[]>().default([]),
+  languages: text("languages", { mode: "json" }).$type<string[]>(),
   rating: real("rating").default(0),
   reviewCount: integer("review_count").notNull().default(0),
 });
@@ -88,7 +87,7 @@ export const services = sqliteTable("services", {
   descriptionStandard: text("description_standard"),
   descriptionPremium: text("description_premium"),
   deliveryDays: integer("delivery_days"),
-  sampleUrls: text("sample_urls", { mode: "json" }).$type<string[]>().default([]),
+  sampleUrls: text("sample_urls", { mode: "json" }).$type<string[]>(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
@@ -181,8 +180,7 @@ export const messages = sqliteTable("messages", {
     .references(() => users.id, { onDelete: "cascade" }),
   body: text("body").notNull(),
   attachments: text("attachments", { mode: "json" })
-    .$type<Array<{ url: string; filename: string; size: number }>>()
-    .default([]),
+    .$type<Array<{ url: string; filename: string; size: number }>>(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
@@ -288,7 +286,7 @@ export const disputes = sqliteTable("disputes", {
   status: text("status", { enum: ["open", "in_review", "resolved", "closed"] })
     .notNull()
     .default("open"),
-  evidence: text("evidence", { mode: "json" }).$type<Array<{ url: string; note: string }>>().default([]),
+  evidence: text("evidence", { mode: "json" }).$type<Array<{ url: string; note: string }>>(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
